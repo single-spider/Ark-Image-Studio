@@ -15,3 +15,15 @@ The detailed component license/feasibility report was provided in chat. This fil
 - Those are **not represented as verbatim ports** of Magic UI/Motion Primitives/Animate UI/React Bits.
 - Before introducing actual third-party component source, record: source URL, commit/version, dependency list, license text/notice, integration path, and reduced-motion behavior.
 - Avoid storing a giant vendor-code dump without a concrete use case.
+
+## Research pass, 2026-11-21
+
+See `docs/INTERACTION_IMPLEMENTATION_PLAN.md` for phased work and `THIRD_PARTY_NOTICES.md` for MIT attribution.
+
+Source files checked:
+- [Motion Primitives Image Comparison](https://github.com/ibelick/motion-primitives/blob/main/components/core/image-comparison.tsx)
+- [Motion Primitives Toolbar Dynamic](https://github.com/ibelick/motion-primitives/blob/main/components/core/toolbar-dynamic.tsx)
+- [Magic UI Lens](https://github.com/magicuidesign/magicui/blob/main/apps/www/registry/magicui/lens.tsx)
+- [TanStack React Virtual](https://tanstack.com/virtual/latest/docs/framework/react/react-virtual)
+
+Animate UI currently requires an independently tested Motion upgrade (research found Motion `^14` peer dependency). It is deferred.
