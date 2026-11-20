@@ -15,6 +15,7 @@ type Point = { x: number; y: number };
 type Stroke = Point[];
 
 interface WorkspaceProps {
+  assets: StudioAsset[];
   lineage: StudioAsset[];
   lineageCount: number;
   activeAsset: StudioAsset;
@@ -48,7 +49,7 @@ const tools: Array<{ id: WorkspaceTool; label: string; Icon: typeof Hand }> = [
 ];
 
 export function Workspace({
-  lineage, lineageCount, activeAsset, compareAsset, tab, tool, zoom, onTabChange,
+  assets, lineage, lineageCount, activeAsset, compareAsset, tab, tool, zoom, onTabChange,
   onToolChange, onZoomChange, onSelectAsset, onCompareAsset, onBranchAsset,
   onSendToReference, onDeleteAsset, onToggleKeeper, onToast,
 }: WorkspaceProps) {
