@@ -203,7 +203,7 @@ export default function App() {
   });
 
   return (
-    <div className="ark-app" data-theme={theme}>
+    <div className="ark-app" data-theme={theme} data-mini-library={miniLibraryOpen ? "open" : "closed"}>
       <div className="background-photo" />
       <div className="background-vignette" />
       <div className="background-grain" />
