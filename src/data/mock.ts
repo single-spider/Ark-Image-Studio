@@ -34,6 +34,8 @@ export const mockAssets: StudioAsset[] = source.map(([photo, title, prompt, coll
   collection,
   ratio: ratio as StudioAsset['ratio'],
   keeper: [0, 2, 6, 8, 13].includes(index),
+  lineageId: `demo-study-${Math.floor(index / 6) + 1}`,
+  parentId: index % 6 === 0 ? undefined : `demo-${String(index).padStart(3, '0')}`,
 }));
 
 export const initialReferences: ReferenceSlot[] = [

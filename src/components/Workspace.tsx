@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { ArkImageComparison } from './primitives/ArkImageComparison';
 import { ArkImageLens } from './primitives/ArkImageLens';
 import { arkMotion } from '../lib/motion';
+import { IterationDeck } from './IterationDeck';
 import {
   ArrowLeftRight, Bookmark, Brush, Check, Expand, Eye, GitCompareArrows,
   Hand, Layers3, Maximize2, Minus, Plus, RotateCcw, ScanSearch, ZoomIn, ZoomOut,
@@ -15,6 +16,8 @@ type Stroke = Point[];
 
 interface WorkspaceProps {
   assets: StudioAsset[];
+  lineage: StudioAsset[];
+  lineageCount: number;
   activeAsset: StudioAsset;
   compareAsset: StudioAsset;
   tab: WorkspaceTab;
@@ -24,6 +27,10 @@ interface WorkspaceProps {
   onToolChange: (tool: WorkspaceTool) => void;
   onZoomChange: (zoom: number) => void;
   onSelectAsset: (id: string) => void;
+  onCompareAsset: (id: string) => void;
+  onBranchAsset: (id: string) => void;
+  onSendToReference: (id: string) => void;
+  onDeleteAsset: (id: string) => void;
   onToggleKeeper: (id: string) => void;
   onToast: (message: string, detail?: string) => void;
 }
@@ -42,8 +49,9 @@ const tools: Array<{ id: WorkspaceTool; label: string; Icon: typeof Hand }> = [
 ];
 
 export function Workspace({
-  assets, activeAsset, compareAsset, tab, tool, zoom, onTabChange,
-  onToolChange, onZoomChange, onSelectAsset, onToggleKeeper, onToast,
+  assets, lineage, lineageCount, activeAsset, compareAsset, tab, tool, zoom, onTabChange,
+  onToolChange, onZoomChange, onSelectAsset, onCompareAsset, onBranchAsset,
+  onSendToReference, onDeleteAsset, onToggleKeeper, onToast,
 }: WorkspaceProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const drawingRef = useRef(false);
@@ -58,7 +66,6 @@ export function Workspace({
   const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
   const [toolsOpen, setToolsOpen] = useState(false);
 
-  const lineage = [activeAsset, ...assets.filter((asset) => asset.id !== activeAsset.id)].slice(0, 6);
   const source = tab === 'main' ? activeAsset : tab === 'reference' ? compareAsset : assets[2] ?? activeAsset;
 
   useEffect(() => {
@@ -271,30 +278,17 @@ export function Workspace({
           </AnimatePresence>
         </motion.div>
 
-        <div className="floating-iterations" aria-label="Iteration history">
-          <div className="iteration-heading"><span>ITERATIONS</span><span className="iteration-count">{String(lineage.length).padStart(2, '0')} / 06</span></div>
-          <div className="iteration-list">
-            {lineage.map((asset, index) => (
-              <motion.button
-                layout
-                type="button"
-                key={asset.id}
-                className={`iteration-thumb ${asset.id === activeAsset.id ? 'selected' : ''}`}
-                title={asset.title}
-                aria-label={`View iteration ${index + 1}: ${asset.title}`}
-                aria-pressed={asset.id === activeAsset.id}
-                onClick={() => onSelectAsset(asset.id)}
-                whileHover={reduceMotion ? undefined : { y: -7 }}
-                transition={arkMotion.iteration}
-              >
-                <img src={asset.thumb} alt="" draggable={false} />
-                <span className="iteration-number">{String(index + 1).padStart(2, '0')}</span>
-                {asset.keeper && <Bookmark className="iteration-bookmark" size={12} fill="currentColor" />}
-              </motion.button>
-            ))}
-          </div>
-          <div className="iteration-hint">Select a frame to revisit an iteration</div>
-        </div>
+        <IterationDeck
+          assets={lineage}
+          totalCount={lineageCount}
+          activeId={activeAsset.id}
+          onSelect={onSelectAsset}
+          onCompare={onCompareAsset}
+          onBranch={onBranchAsset}
+          onSendToReference={onSendToReference}
+          onToggleKeeper={onToggleKeeper}
+          onDelete={onDeleteAsset}
+        />
 
         <div className="viewport-foot">
           <div className="foot-image-meta"><span className="mono-dot" /> {activeAsset.model} <span className="meta-separator">/</span> {activeAsset.ratio} <span className="meta-separator">/</span> Seed {activeAsset.seed}</div>

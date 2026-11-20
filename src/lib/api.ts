@@ -24,6 +24,8 @@ export const mockStudioApi: StudioApi = {
       createdAt: new Date().toISOString().slice(0, 10),
       collection: 'New Generations',
       keeper: false,
+      lineageId: request.lineageId ?? `demo-generated-${Date.now()}`,
+      parentId: request.parentAssetId,
     };
   },
 };

@@ -9,6 +9,7 @@ import { StudioControls } from './components/StudioControls';
 import { Workspace } from './components/Workspace';
 import { initialReferences, mockAssets } from './data/mock';
 import { mockStudioApi } from './lib/api';
+import { getLineage, getLineageWindow } from './lib/lineage';
 import type {
   AspectRatio, ReferenceSlot, StudioAsset, StudioNotice, StudioTheme,
   WorkspaceTab, WorkspaceTool,
@@ -35,9 +36,12 @@ export default function App() {
   const [generating, setGenerating] = useState(false);
   const [notice, setNotice] = useState<StudioNotice | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [branchOriginId, setBranchOriginId] = useState<string | null>(null);
 
   const activeAsset = assets.find((asset) => asset.id === activeId) ?? assets[0];
   const compareAsset = assets.find((asset) => asset.id === compareId) ?? assets[1] ?? activeAsset;
+  const lineage = getLineage(assets, activeAsset);
+  const visibleLineage = getLineageWindow(lineage, activeAsset.id);
 
   function toast(message: string, detail?: string) {
     setNotice({ id: Date.now(), message, detail, tone: 'success' });
@@ -51,6 +55,34 @@ export default function App() {
 
   function toggleKeeper(id: string) {
     setAssets((current) => current.map((asset) => asset.id === id ? { ...asset, keeper: !asset.keeper } : asset));
+  }
+
+  function selectAsset(id: string) {
+    setActiveId(id);
+    setTab('main');
+    setBranchOriginId(null);
+  }
+
+  function compareWith(id: string) {
+    const choice = id === activeId
+      ? (lineage.find((asset) => asset.id !== activeId) ?? assets.find((asset) => asset.id !== activeId))
+      : assets.find((asset) => asset.id === id);
+    if (!choice) return toast('No comparison available', 'Add another image to compare.');
+    setCompareId(choice.id);
+    setTool('compare');
+    setTab('main');
+    toast('A/B comparison ready', `Comparing with ${choice.title}.`);
+  }
+
+  function branchFrom(id: string) {
+    const asset = assets.find((item) => item.id === id);
+    if (!asset) return;
+    setActiveId(asset.id);
+    setBranchOriginId(asset.id);
+    setPrompt(asset.prompt);
+    setTab('main');
+    setTool('pan');
+    toast('Branch ready', 'Edit the inherited prompt, then generate a mock child iteration.');
   }
 
   function importReference(id: string, file: File) {
@@ -69,23 +101,29 @@ export default function App() {
 
   function importGallery(file: File) {
     const src = URL.createObjectURL(file);
+    const id = `demo-import-${Date.now()}`;
     const asset: StudioAsset = {
-      id: `demo-import-${Date.now()}`, src, thumb: src, title: file.name.replace(/\.[^.]+$/, ''),
+      id, src, thumb: src, title: file.name.replace(/\.[^.]+$/, ''),
       prompt: 'Locally imported preview image', seed: 0, model: 'Local import',
       createdAt: new Date().toISOString().slice(0, 10), collection: 'Imports',
-      ratio: '4:3', keeper: false,
+      ratio: '4:3', keeper: false, lineageId: id,
     };
     setAssets((current) => [asset, ...current]);
     setActiveId(asset.id);
     setTab('main');
+    setBranchOriginId(null);
     toast('Image imported', 'Stored in browser memory for this session.');
   }
 
   function deleteAsset(id: string) {
     if (assets.length <= 1) return toast('Keep one image', 'The preview workspace needs at least one image.');
-    setAssets((current) => current.filter((asset) => asset.id !== id));
-    if (activeId === id) setActiveId(assets.find((asset) => asset.id !== id)!.id);
-    if (compareId === id) setCompareId(assets.find((asset) => asset.id !== id)!.id);
+    const removed = assets.find((asset) => asset.id === id);
+    const remaining = assets.filter((asset) => asset.id !== id);
+    const nextActive = remaining.find((asset) => asset.lineageId === removed?.lineageId) ?? remaining[0];
+    setAssets(remaining.map((asset) => asset.parentId === id ? { ...asset, parentId: removed?.parentId } : asset));
+    if (activeId === id) setActiveId(nextActive.id);
+    if (compareId === id) setCompareId(nextActive.id);
+    if (branchOriginId === id) setBranchOriginId(null);
     toast('Removed from preview', 'No files were deleted from disk.');
   }
 
@@ -94,11 +132,17 @@ export default function App() {
     setGenerating(true);
     toast('Mock generation started', 'Simulating a result locally. No AI service is called.');
     try {
-      const result = await mockStudioApi.generate({ prompt, negativePrompt, model, ratio, resolution, seed, creativity });
+      const parent = assets.find((asset) => asset.id === (branchOriginId ?? activeId)) ?? activeAsset;
+      const result = await mockStudioApi.generate({
+        prompt, negativePrompt, model, ratio, resolution, seed, creativity,
+        parentAssetId: parent.id,
+        lineageId: parent.lineageId ?? parent.id,
+      });
       setAssets((current) => [result, ...current]);
       setActiveId(result.id);
       setTab('main');
       setTool('pan');
+      setBranchOriginId(null);
       toast('New preview iteration', 'Simulated image added to your session gallery.');
     } catch {
       toast('Preview generation failed', 'Try the simulation again.');
@@ -115,9 +159,8 @@ export default function App() {
       if (event.key === 'Escape') { setHelpOpen(false); return; }
       if (editing || event.ctrlKey || event.metaKey || event.altKey) return;
       if (/^[1-6]$/.test(event.key)) {
-        const lineage = [activeAsset, ...assets.filter((asset) => asset.id !== activeAsset.id)].slice(0, 6);
-        const selected = lineage[Number(event.key) - 1];
-        if (selected) setActiveId(selected.id);
+        const selected = visibleLineage[Number(event.key) - 1];
+        if (selected) selectAsset(selected.id);
       }
       if (event.key === '?') setHelpOpen(true);
     };
@@ -155,7 +198,10 @@ export default function App() {
           <Workspace
             assets={assets} activeAsset={activeAsset} compareAsset={compareAsset}
             tab={tab} tool={tool} zoom={zoom} onTabChange={setTab} onToolChange={setTool}
-            onZoomChange={setZoom} onSelectAsset={(id) => { setActiveId(id); setTab('main'); }}
+            onZoomChange={setZoom} onSelectAsset={selectAsset}
+            lineage={visibleLineage} lineageCount={lineage.length}
+            onCompareAsset={compareWith} onBranchAsset={branchFrom}
+            onSendToReference={addAsReference} onDeleteAsset={deleteAsset}
             onToggleKeeper={toggleKeeper} onToast={toast}
           />
           <StudioControls
@@ -172,9 +218,9 @@ export default function App() {
           />
           <Gallery
             assets={assets} activeId={activeId}
-            onSelect={(id) => { setActiveId(id); setTab('main'); }}
+            onSelect={selectAsset}
             onToggleKeeper={toggleKeeper}
-            onCompare={(id) => { setCompareId(id); setTool('compare'); setTab('main'); toast('Compare mode active', 'Drag the divider in the main image to inspect differences.'); }}
+            onCompare={compareWith}
             onAddReference={addAsReference} onDelete={deleteAsset}
             onImport={importGallery} onToast={toast}
           />
@@ -204,7 +250,10 @@ export default function App() {
               <div className="help-modal-head"><div><span className="section-kicker">WORKSPACE REFERENCE</span><h2 id="help-title">Keyboard & controls</h2></div><button type="button" aria-label="Close help" onClick={() => setHelpOpen(false)}><X size={18} /></button></div>
               <div className="help-shortcuts">
                 <div><span>Simulate generation</span><kbd>Ctrl / ⌘ + Enter</kbd></div>
-                <div><span>Select iteration</span><kbd>1 — 6</kbd></div>
+                <div><span>Select visible iteration</span><kbd>1 — 6</kbd></div>
+                <div><span>Compare iteration with main</span><kbd>Shift + click</kbd></div>
+                <div><span>Toggle Keeper</span><kbd>Double-click frame</kbd></div>
+                <div><span>Lineage actions</span><kbd>Right-click / Shift + F10</kbd></div>
                 <div><span>Open this panel</span><kbd>?</kbd></div>
                 <div><span>Close dialog</span><kbd>Esc</kbd></div>
               </div>

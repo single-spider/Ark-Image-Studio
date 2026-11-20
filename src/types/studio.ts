@@ -16,6 +16,9 @@ export interface StudioAsset {
   collection: string;
   ratio: AspectRatio;
   keeper: boolean;
+  /** Optional ancestry metadata; never encoded into the existing image ID. */
+  parentId?: string;
+  lineageId?: string;
 }
 
 export interface ReferenceSlot {
@@ -34,6 +37,9 @@ export interface GenerationRequest {
   resolution: string;
   seed: string;
   creativity: number;
+  /** Preview-only lineage hints until the real FastAPI contract is verified. */
+  parentAssetId?: string;
+  lineageId?: string;
 }
 
 export interface StudioNotice {
