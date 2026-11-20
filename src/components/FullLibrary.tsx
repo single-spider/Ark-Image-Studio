@@ -64,15 +64,38 @@ export function FullLibrary({
   const catalog = useMemo(() => stressMode ? createStressLibrary(assets) : assets, [assets, stressMode]);
   const collections = useMemo(() => [...new Set(assets.map((asset) => asset.collection))].sort(), [assets]);
   const models = useMemo(() => [...new Set(assets.map((asset) => asset.model))].sort(), [assets]);
+  const catalogById = useMemo(() => new Map(catalog.map((asset) => [asset.id, asset])), [catalog]);
+  const collectionCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const asset of catalog) counts.set(asset.collection, (counts.get(asset.collection) ?? 0) + 1);
+    return counts;
+  }, [catalog]);
+  const scopeCounts = useMemo(() => {
+    let keepers = 0;
+    let imports = 0;
+    let generations = 0;
+    for (const asset of catalog) {
+      if (asset.keeper) keepers += 1;
+      if (asset.collection === 'Imports') imports += 1;
+      if (asset.collection === 'New Generations') generations += 1;
+    }
+    return {
+      all: catalog.length,
+      keepers,
+      recent: Math.min(36, catalog.length),
+      imports,
+      generations,
+    } satisfies Record<LibraryScope, number>;
+  }, [catalog]);
 
   const visible = useMemo(() => filterLibrary(catalog, {
     search, scope, collection: collection ?? undefined, model: model ?? undefined,
     sort, recentLimit: 36,
   }), [catalog, collection, model, scope, search, sort]);
 
-  const selected = useMemo(() => catalog.find((asset) => asset.id === inspectedId)
+  const selected = useMemo(() => catalogById.get(inspectedId ?? '')
     ?? assets.find((asset) => asset.id === resolveLibraryAssetId(inspectedId ?? ''))
-    ?? null, [assets, catalog, inspectedId]);
+    ?? null, [assets, catalogById, inspectedId]);
 
   const availableWidth = Math.max(340, viewportWidth - 30);
   const columns = Math.max(2, Math.min(7, Math.floor(availableWidth / (compact ? 155 : 218))));
@@ -226,18 +249,11 @@ export function FullLibrary({
         <nav className="ark-library-sidebar" aria-label="Library navigation">
           <div className="ark-sidebar-section-label">QUICK VIEWS</div>
           <div className="ark-sidebar-nav">
-            {views.map(({ id, label, icon: Icon }) => {
-              const count = id === 'all' ? catalog.length
-                : id === 'keepers' ? catalog.filter((asset) => asset.keeper).length
-                : id === 'recent' ? Math.min(36, catalog.length)
-                : id === 'imports' ? catalog.filter((asset) => asset.collection === 'Imports').length
-                : catalog.filter((asset) => asset.collection === 'New Generations').length;
-              return (
-                <button type="button" key={id} className={scope === id && !collection && !model ? 'active' : ''} onClick={() => selectScope(id)}>
-                  <Icon size={16}/><span>{label}</span><small>{count}</small>
-                </button>
-              );
-            })}
+            {views.map(({ id, label, icon: Icon }) => (
+              <button type="button" key={id} className={scope === id && !collection && !model ? 'active' : ''} onClick={() => selectScope(id)}>
+                <Icon size={16}/><span>{label}</span><small>{scopeCounts[id]}</small>
+              </button>
+            ))}
           </div>
 
           <div className="ark-sidebar-section-label">COLLECTIONS <span>{collections.length}</span></div>
@@ -245,7 +261,7 @@ export function FullLibrary({
             {collections.map((name) => (
               <button type="button" key={name} className={collection === name ? 'active' : ''} onClick={() => { setScope('all'); setCollection(name); setModel(null); }}>
                 {collection === name ? <FolderOpen size={15}/> : <Folder size={15}/>}
-                <span>{name}</span><small>{assets.filter((asset) => asset.collection === name).length}</small>
+                <span>{name}</span><small>{collectionCounts.get(name) ?? 0}</small>
               </button>
             ))}
           </div>
