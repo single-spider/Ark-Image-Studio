@@ -64,11 +64,6 @@ export function IterationDeck({
   const menuAsset = assets.find((asset) => asset.id === menu?.id);
   const previewing = menu !== null || expanded;
 
-  function closeMenu(restoreFocus = false) {
-    setMenu(null);
-    if (restoreFocus) lastTrigger.current?.focus();
-  }
-
   useEffect(() => {
     if (!menu) return;
     const dismissOutside = (event: globalThis.PointerEvent) => {
