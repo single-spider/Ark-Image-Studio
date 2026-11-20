@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, KeyboardEvent, MouseEvent } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
-  ArrowUpDown, Bookmark, CalendarDays, Check, ChevronRight, Copy, Folder,
+  ArrowUpDown, Bookmark, CalendarDays, ChevronRight, Copy, Folder,
   FolderOpen, GitCompareArrows, ImagePlus, Images, Info, Layers3,
   LayoutGrid, Maximize2, Search, SlidersHorizontal, Sparkles, Trash2, X,
 } from 'lucide-react';
@@ -89,7 +89,6 @@ export function FullLibrary({
     lanes: columns,
     gap: GAP,
     overscan: 6,
-    laneAssignmentMode: 'estimate',
   });
 
   useEffect(() => {
@@ -105,7 +104,7 @@ export function FullLibrary({
   }, [inspectorOpen]);
 
   useEffect(() => {
-    scrollerRef.current?.scrollTo({ top: 0, behavior: 'instant' });
+    scrollerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   }, [scope, search, collection, model, sort, stressMode, compact]);
 
   useEffect(() => {
@@ -326,7 +325,7 @@ export function FullLibrary({
                       <LibraryTile
                         asset={asset}
                         size="full"
-                        selected={inspectedId === asset.id}
+                        selected={inspectedId === asset.id || (!inspectorOpen && activeId === resolveLibraryAssetId(asset.id))}
                         onOpen={() => inspect(asset.id)}
                         onInspect={() => inspect(asset.id)}
                         onDoubleClick={() => openWorkspace(asset.id)}
