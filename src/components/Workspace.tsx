@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { ArkImageComparison } from './primitives/ArkImageComparison';
+import { ArkImageLens } from './primitives/ArkImageLens';
+import { arkMotion } from '../lib/motion';
 import {
   ArrowLeftRight, Bookmark, Brush, Check, Expand, Eye, GitCompareArrows,
-  Hand, Layers3, Maximize2, RotateCcw, ScanSearch, ZoomIn, ZoomOut,
+  Hand, Layers3, Maximize2, Minus, Plus, RotateCcw, ScanSearch, ZoomIn, ZoomOut,
 } from 'lucide-react';
 import type { StudioAsset, WorkspaceTab, WorkspaceTool } from '../types/studio';
 
@@ -45,11 +48,15 @@ export function Workspace({
   const stageRef = useRef<HTMLDivElement>(null);
   const drawingRef = useRef(false);
   const dragRef = useRef<{ x: number; y: number; startX: number; startY: number } | null>(null);
-  const [comparison, setComparison] = useState(50);
   const [lens, setLens] = useState<Point | null>(null);
+  const [lensZoom, setLensZoom] = useState(2);
+  const [compareSwapped, setCompareSwapped] = useState(false);
+  const [brushSize, setBrushSize] = useState(1.3);
+  const reduceMotion = useReducedMotion();
+  const toolbarRef = useRef<HTMLDivElement>(null);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
-  const [toolsOpen, setToolsOpen] = useState(true);
+  const [toolsOpen, setToolsOpen] = useState(false);
 
   const lineage = [activeAsset, ...assets.filter((asset) => asset.id !== activeAsset.id)].slice(0, 6);
   const source = tab === 'main' ? activeAsset : tab === 'reference' ? compareAsset : assets[2] ?? activeAsset;
@@ -57,7 +64,19 @@ export function Workspace({
   useEffect(() => {
     setStrokes([]);
     setPan({ x: 0, y: 0 });
+    setLens(null);
   }, [source.id]);
+
+  useEffect(() => {
+    if (!toolsOpen) return;
+    const closeOutside = (event: globalThis.PointerEvent) => {
+      if (toolbarRef.current && !toolbarRef.current.contains(event.target as Node)) {
+        setToolsOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', closeOutside);
+    return () => document.removeEventListener('pointerdown', closeOutside);
+  }, [toolsOpen]);
 
   function localPoint(event: ReactPointerEvent<HTMLDivElement>): Point {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -148,15 +167,27 @@ export function Workspace({
           onPointerUp={pointerUp}
           onPointerCancel={pointerUp}
           onPointerLeave={() => setLens(null)}
+          onWheel={(event) => {
+            if (tool === 'inspect') {
+              event.preventDefault();
+              setLensZoom((current) => Math.max(1.5, Math.min(4, Math.round((current + (event.deltaY < 0 ? 0.25 : -0.25)) * 100) / 100)));
+            }
+          }}
           aria-label="Interactive image canvas"
         >
           <div className="stage-ambient" style={{ backgroundImage: `url("${source.src}")` }} />
           <div className="stage-image-transform" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom / 100})` }}>
-            <img className="stage-image" src={source.src} alt={source.title} draggable={false} />
-            {tool === 'compare' && tab === 'main' && (
-              <div className="comparison-layer" style={{ clipPath: `inset(0 ${100 - comparison}% 0 0)` }}>
-                <img src={compareAsset.src} alt={`Comparison: ${compareAsset.title}`} draggable={false} />
-              </div>
+            {tool === 'compare' && tab === 'main' ? (
+              <ArkImageComparison
+                baseSrc={compareSwapped ? compareAsset.src : source.src}
+                revealSrc={compareSwapped ? source.src : compareAsset.src}
+                baseLabel={compareSwapped ? compareAsset.title : source.title}
+                revealLabel={compareSwapped ? source.title : compareAsset.title}
+              />
+            ) : tool === 'inspect' ? (
+              <ArkImageLens src={source.src} alt={source.title} position={lens} zoomFactor={lensZoom} />
+            ) : (
+              <img className="stage-image" src={source.src} alt={source.title} draggable={false} />
             )}
           </div>
 
@@ -165,42 +196,12 @@ export function Workspace({
             <span className="image-flag"><span className="flag-pip" /> {tool === 'mask' ? 'Mask editing' : tool === 'inspect' ? 'Detail inspection' : tool === 'compare' ? 'A / B comparison' : 'Preview mode'}</span>
           </div>
 
-          {tool === 'compare' && tab === 'main' && (
-            <div className="compare-control" style={{ left: `${comparison}%` }}>
-              <span className="compare-label compare-label-a">A / Original</span>
-              <div className="compare-line" />
-              <span className="compare-handle"><ArrowLeftRight size={17} /></span>
-              <span className="compare-label compare-label-b">B / Variant</span>
-            </div>
-          )}
-          {tool === 'compare' && tab === 'main' && (
-            <input
-              className="compare-range"
-              type="range" min="0" max="100" value={comparison}
-              aria-label="Image comparison split"
-              onChange={(event) => setComparison(Number(event.target.value))}
-            />
-          )}
-
           {tool === 'mask' && (
             <svg className="mask-overlay" viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Painted mask overlay">
               {strokes.map((stroke, index) => (
-                <polyline key={index} points={stroke.map((p) => `${p.x},${p.y}`).join(' ')} stroke="var(--accent)" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" fill="none" opacity=".9" />
+                <polyline key={index} points={stroke.map((p) => `${p.x},${p.y}`).join(' ')} stroke="var(--accent)" strokeWidth={brushSize} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity=".9" />
               ))}
             </svg>
-          )}
-
-          {tool === 'inspect' && lens && (
-            <div
-              className="inspection-lens"
-              style={{
-                left: `${lens.x}%`, top: `${lens.y}%`,
-                backgroundImage: `url("${source.src}")`,
-                backgroundPosition: `${lens.x}% ${lens.y}%`,
-              }}
-            >
-              <span className="lens-crosshair" />
-            </div>
           )}
 
           <div className="image-bottom-info">
@@ -219,25 +220,56 @@ export function Workspace({
           </div>
         </div>
 
-        <div className="floating-toolbar" aria-label="Image tools">
-          <button type="button" className="toolbar-head" aria-label={toolsOpen ? 'Collapse tools' : 'Expand tools'} onClick={() => setToolsOpen((open) => !open)}>
+        <motion.div layout ref={toolbarRef} className="floating-toolbar" aria-label="Image tools" transition={arkMotion.toolbar}>
+          <button type="button" className="toolbar-head" aria-label={toolsOpen ? 'Collapse tools' : 'Expand tools'} aria-expanded={toolsOpen} onClick={() => setToolsOpen((open) => !open)}>
             <span className="toolbar-head-dots"><i /><i /><i /></span>
             <span className="toolbar-head-text">Tools</span>
             <span className="toolbar-chevron">{toolsOpen ? '−' : '+'}</span>
           </button>
-          {toolsOpen && (
-            <div className="toolbar-body">
-              {tools.map(({ id, label, Icon }) => (
-                <button type="button" key={id} title={label} aria-label={label} aria-pressed={tool === id} className={`tool-button ${tool === id ? 'selected' : ''}`} onClick={() => { onToolChange(id); setLens(null); }}>
-                  <Icon size={17} strokeWidth={1.8} />
-                </button>
-              ))}
-              <span className="tool-divider" />
-              <button type="button" className="tool-button" title="Fit image" aria-label="Fit image" onClick={resetView}><Maximize2 size={16} /></button>
-              <button type="button" className="tool-button" title="Fullscreen" aria-label="Fullscreen" onClick={() => { void stageRef.current?.requestFullscreen?.(); }}><Expand size={16} /></button>
-            </div>
-          )}
-        </div>
+          <AnimatePresence initial={false}>
+            {toolsOpen && (
+              <motion.div
+                key="toolbar-body"
+                className="toolbar-body-wrapper"
+                initial={reduceMotion ? false : { opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: reduceMotion ? 0 : 0.2 }}
+              >
+                <div className="toolbar-body">
+                  {tools.map(({ id, label, Icon }) => (
+                    <button type="button" key={id} title={label} aria-label={label} aria-pressed={tool === id} className={`tool-button ${tool === id ? 'selected' : ''}`} onClick={() => { onToolChange(id); setLens(null); }}>
+                      <Icon size={17} strokeWidth={1.8} />
+                    </button>
+                  ))}
+                  <span className="tool-divider" />
+                  {tool === 'inspect' && (
+                    <div className="toolbar-context" aria-label="Lens zoom">
+                      <span className="toolbar-mode-title">{lensZoom.toFixed(1)}×</span>
+                      <button type="button" className="tool-button" aria-label="Decrease lens zoom" title="Decrease lens zoom" onClick={() => setLensZoom((value) => Math.max(1.5, value - 0.25))}><ZoomOut size={15} /></button>
+                      <button type="button" className="tool-button" aria-label="Increase lens zoom" title="Increase lens zoom" onClick={() => setLensZoom((value) => Math.min(4, value + 0.25))}><ZoomIn size={15} /></button>
+                    </div>
+                  )}
+                  {tool === 'compare' && (
+                    <div className="toolbar-context">
+                      <button type="button" className="tool-button" aria-label="Swap comparison images" title="Swap A/B sides" onClick={() => setCompareSwapped((value) => !value)}><ArrowLeftRight size={16} /></button>
+                    </div>
+                  )}
+                  {tool === 'mask' && (
+                    <div className="toolbar-context" aria-label="Mask brush">
+                      <span className="toolbar-mode-title">{brushSize.toFixed(1)}</span>
+                      <button type="button" className="tool-button" aria-label="Decrease brush size" title="Smaller brush" onClick={() => setBrushSize((value) => Math.max(0.5, Math.round((value - 0.4) * 10) / 10))}><Minus size={15} /></button>
+                      <button type="button" className="tool-button" aria-label="Increase brush size" title="Larger brush" onClick={() => setBrushSize((value) => Math.min(5, Math.round((value + 0.4) * 10) / 10))}><Plus size={15} /></button>
+                    </div>
+                  )}
+                  <span className="tool-divider" />
+                  <button type="button" className="tool-button" title="Fit image" aria-label="Fit image" onClick={resetView}><Maximize2 size={16} /></button>
+                  <button type="button" className="tool-button" title="Fullscreen" aria-label="Fullscreen" onClick={() => { void stageRef.current?.requestFullscreen?.(); }}><Expand size={16} /></button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
 
         <div className="floating-iterations" aria-label="Iteration history">
           <div className="iteration-heading"><span>ITERATIONS</span><span className="iteration-count">{String(lineage.length).padStart(2, '0')} / 06</span></div>
@@ -252,8 +284,8 @@ export function Workspace({
                 aria-label={`View iteration ${index + 1}: ${asset.title}`}
                 aria-pressed={asset.id === activeAsset.id}
                 onClick={() => onSelectAsset(asset.id)}
-                whileHover={{ y: -7 }}
-                transition={{ type: 'spring', stiffness: 390, damping: 29 }}
+                whileHover={reduceMotion ? undefined : { y: -7 }}
+                transition={arkMotion.iteration}
               >
                 <img src={asset.thumb} alt="" draggable={false} />
                 <span className="iteration-number">{String(index + 1).padStart(2, '0')}</span>
