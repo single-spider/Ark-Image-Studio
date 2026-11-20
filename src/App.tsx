@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   Aperture, Check, ChevronDown, CircleHelp, Command, ExternalLink, FolderOpen,
-  Layers3, Monitor, Moon, Palette, Settings2, Sparkles, X,
+  Images, Layers3, Monitor, Moon, Palette, PanelRightClose, PanelRightOpen,
+  Settings2, Sparkles, X,
 } from 'lucide-react';
 import { Gallery } from './components/Gallery';
+import { FullLibrary } from './components/FullLibrary';
 import { StudioControls } from './components/StudioControls';
 import { Workspace } from './components/Workspace';
 import { initialReferences, mockAssets } from './data/mock';
@@ -36,6 +38,12 @@ export default function App() {
   const [generating, setGenerating] = useState(false);
   const [notice, setNotice] = useState<StudioNotice | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [miniLibraryOpen, setMiniLibraryOpen] = useState(() => {
+    try { return window.localStorage.getItem('ark-mini-library-visible') !== 'false'; }
+    catch { return true; }
+  });
+  const [fullLibraryOpen, setFullLibraryOpen] = useState(false);
+  const [libraryInspectId, setLibraryInspectId] = useState<string | null>(null);
   const [branchOriginId, setBranchOriginId] = useState<string | null>(null);
 
   const activeAsset = assets.find((asset) => asset.id === activeId) ?? assets[0];
@@ -52,6 +60,21 @@ export default function App() {
     const timer = window.setTimeout(() => setNotice(null), 3900);
     return () => window.clearTimeout(timer);
   }, [notice]);
+
+  useEffect(() => {
+    try { window.localStorage.setItem('ark-mini-library-visible', String(miniLibraryOpen)); }
+    catch { /* Browser storage is optional. */ }
+  }, [miniLibraryOpen]);
+
+  function openFullLibrary(inspectId: string | null = null) {
+    setLibraryInspectId(inspectId);
+    setFullLibraryOpen(true);
+  }
+
+  function closeFullLibrary() {
+    setFullLibraryOpen(false);
+    setLibraryInspectId(null);
+  }
 
   function toggleKeeper(id: string) {
     setAssets((current) => current.map((asset) => asset.id === id ? { ...asset, keeper: !asset.keeper } : asset));
@@ -155,9 +178,20 @@ export default function App() {
     const handleKeys = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
       const editing = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
+      if (fullLibraryOpen) return;
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); void generate(); return; }
       if (event.key === 'Escape') { setHelpOpen(false); return; }
       if (editing || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.key.toLowerCase() === 'l') {
+        event.preventDefault();
+        setMiniLibraryOpen((open) => !open);
+        return;
+      }
+      if (event.key.toLowerCase() === 'g') {
+        event.preventDefault();
+        openFullLibrary();
+        return;
+      }
       if (/^[1-6]$/.test(event.key)) {
         const selected = visibleLineage[Number(event.key) - 1];
         if (selected) selectAsset(selected.id);
@@ -169,7 +203,7 @@ export default function App() {
   });
 
   return (
-    <div className="ark-app" data-theme={theme}>
+    <div className="ark-app" data-theme={theme} data-mini-library={miniLibraryOpen ? "open" : "closed"}>
       <div className="background-photo" />
       <div className="background-vignette" />
       <div className="background-grain" />
@@ -187,6 +221,16 @@ export default function App() {
           <div className="topbar-spacer" />
           <div className="topbar-preview"><span className="pulse-dot" /> INTERACTIVE DEMO <span className="preview-mini">/ MOCK API</span></div>
           <span className="topbar-divider small" />
+          <div className="ark-topbar-library-controls">
+            <button type="button" className="ark-topbar-library-button" title="Open Full Library (G)" aria-label="Open Full Library" onClick={() => openFullLibrary()}>
+              <Images size={16}/><span>Library</span>
+            </button>
+            <button type="button" className={`ark-topbar-library-button ${miniLibraryOpen ? 'active' : ''}`} title={miniLibraryOpen ? 'Collapse Mini Library (L)' : 'Show Mini Library (L)'} aria-label={miniLibraryOpen ? 'Collapse Mini Library' : 'Show Mini Library'} aria-pressed={miniLibraryOpen} onClick={() => setMiniLibraryOpen((open) => !open)}>
+              {miniLibraryOpen ? <PanelRightClose size={17}/> : <PanelRightOpen size={17}/>}
+              <span>Mini</span>
+            </button>
+          </div>
+          <span className="topbar-divider small" />
           <div className="theme-selector"><Palette size={15} /><select aria-label="Color theme" value={theme} onChange={(event) => setTheme(event.target.value as StudioTheme)}><option value="nocturne">Nocturne</option><option value="mineral">Mineral</option><option value="ember">Ember</option></select><ChevronDown size={12} /></div>
           <button type="button" className="topbar-icon" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" onClick={() => setHelpOpen(true)}><CircleHelp size={18} /></button>
           <a className="topbar-icon" title="Open GitHub repository" aria-label="Open GitHub repository" href="https://github.com/single-spider/Ark-Image-Studio" target="_blank" rel="noreferrer"><ExternalLink size={17} /></a>
@@ -194,7 +238,7 @@ export default function App() {
 
         <div className="app-overline"><span><Aperture size={14} /> CREATIVE WORKSPACE</span><span>DESIGN STUDY / NOCTURNE SYSTEM <span className="overline-index">001—003</span></span></div>
 
-        <main className="studio-layout">
+        <main className={`studio-layout ${miniLibraryOpen ? '' : 'gallery-collapsed'}`}>
           <Workspace
             assets={assets} activeAsset={activeAsset} compareAsset={compareAsset}
             tab={tab} tool={tool} zoom={zoom} onTabChange={setTab} onToolChange={setTool}
@@ -219,6 +263,9 @@ export default function App() {
           <Gallery
             assets={assets} activeId={activeId}
             onSelect={selectAsset}
+            onInspect={(id) => openFullLibrary(id)}
+            onOpenFullLibrary={() => openFullLibrary()}
+            onCollapse={() => setMiniLibraryOpen(false)}
             onToggleKeeper={toggleKeeper}
             onCompare={compareWith}
             onAddReference={addAsReference} onDelete={deleteAsset}
@@ -232,6 +279,22 @@ export default function App() {
           <div className="statusbar-right"><Layers3 size={13} /> {assets.length} images <span className="statusbar-rule" /><Command size={13} /> Ctrl + Enter to simulate <span className="statusbar-rule" /><Settings2 size={13} /> React 19</div>
         </footer>
       </div>
+
+      {fullLibraryOpen && (
+        <FullLibrary
+          assets={assets}
+          activeId={activeId}
+          initialInspectId={libraryInspectId}
+          onClose={closeFullLibrary}
+          onSelect={selectAsset}
+          onCompare={compareWith}
+          onAddReference={addAsReference}
+          onToggleKeeper={toggleKeeper}
+          onDelete={deleteAsset}
+          onImport={importGallery}
+          onToast={toast}
+        />
+      )}
 
       <AnimatePresence>
         {notice && (
@@ -254,6 +317,8 @@ export default function App() {
                 <div><span>Compare iteration with main</span><kbd>Shift + click</kbd></div>
                 <div><span>Toggle Keeper</span><kbd>Double-click frame</kbd></div>
                 <div><span>Lineage actions</span><kbd>Right-click / Shift + F10</kbd></div>
+                <div><span>Toggle Mini Library</span><kbd>L</kbd></div>
+                <div><span>Open Full Library</span><kbd>G</kbd></div>
                 <div><span>Open this panel</span><kbd>?</kbd></div>
                 <div><span>Close dialog</span><kbd>Esc</kbd></div>
               </div>
