@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.vite/
+*.local
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+*.log
+*.sqlite
+*.sqlite3
+*.db
+studio-heartbeat.json
+Downloads/
+generated/
+outputs/
