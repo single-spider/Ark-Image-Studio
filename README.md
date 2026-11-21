@@ -1,6 +1,6 @@
 # ARK Image Studio v2
 
-An atmospheric, three-column desktop AI image studio. This repository is the canonical home for the React UI, the live GitHub Pages preview, design decisions, and future integration with the existing Windows/FastAPI backend.
+An atmospheric, three-column desktop AI image studio. This repository is the canonical home for the React UI, the live GitHub Pages preview, design decisions, and staged integration with the existing Windows/FastAPI backend.
 
 **Preview:** https://single-spider.github.io/Ark-Image-Studio/ (after enabling GitHub Pages with **GitHub Actions** as its source)
 
@@ -40,9 +40,9 @@ If the Pages site initially returns 404, wait for the first workflow to finish a
 
 ## Architecture and guardrails
 
-See [Design Direction](docs/DESIGN_DIRECTION.md), [Backend Integration](docs/BACKEND_INTEGRATION.md), and [Component Catalog](research/COMPONENT_CATALOG.md).
+See [Design Direction](docs/DESIGN_DIRECTION.md), [Backend Integration](docs/BACKEND_INTEGRATION.md), [Verified Backend Contract](docs/BACKEND_CONTRACT_AUDIT.md), and [Component Catalog](research/COMPONENT_CATALOG.md).
 
-The existing backend, disk library, IDs, sorter heartbeat, and NTFS hardlink behavior are **out of scope for the browser mock** until their real source files are inspected. Never commit credentials, local personal assets, generated image archives, or API tokens. GitHub Pages is static hosting, not a Python/FastAPI host.
+The FastAPI/SQLite/queue source has been audited, and a read-only contract adapter is staged in the repository. The browser preview remains mock-only. The core `image_library.py` and sorter documentation are still required for full integration. Never commit credentials, local personal assets, generated image archives, or API tokens. GitHub Pages is static hosting, not a Python/FastAPI host.
 
 ## Source licensing
 
