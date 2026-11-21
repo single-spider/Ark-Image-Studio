@@ -6,8 +6,8 @@ import { ArkImageLens } from './primitives/ArkImageLens';
 import { arkMotion } from '../lib/motion';
 import { IterationDeck } from './IterationDeck';
 import {
-  ArrowLeftRight, Bookmark, Brush, Check, Expand, Eye, GitCompareArrows,
-  Hand, Layers3, Maximize2, Minus, Plus, RotateCcw, ScanSearch, ZoomIn, ZoomOut,
+  Aperture, ArrowLeftRight, Bookmark, Brush, Expand, Eye, GitCompareArrows,
+  Hand, Layers3, Maximize2, Minus, Plus, RotateCcw, ScanSearch, SlidersHorizontal, ZoomIn, ZoomOut,
 } from 'lucide-react';
 import type { StudioAsset, WorkspaceTab, WorkspaceTool } from '../types/studio';
 
@@ -140,9 +140,10 @@ export function Workspace({
     <section className="workspace-panel" aria-label="Image workspace">
       <div className="panel-heading workspace-heading">
         <div className="heading-left">
-          <span className="eyebrow">01 / Workspace</span>
+          <Aperture size={14} className="workspace-glyph" aria-hidden="true" />
+          <span className="eyebrow">01 / Creative workspace</span>
           <span className="heading-separator" />
-          <span className="heading-subtitle">Image canvas</span>
+          <span className="heading-subtitle">Canvas</span>
         </div>
         <div className="workspace-meta"><span className="status-dot" /> Canvas ready <span className="meta-separator">/</span> {zoom}%</div>
       </div>
@@ -199,8 +200,7 @@ export function Workspace({
           </div>
 
           <div className="image-top-overlay">
-            <span className="image-index">ARK / IMG {activeAsset.id.replace('demo-', '').slice(-3)}</span>
-            <span className="image-flag"><span className="flag-pip" /> {tool === 'mask' ? 'Mask editing' : tool === 'inspect' ? 'Detail inspection' : tool === 'compare' ? 'A / B comparison' : 'Preview mode'}</span>
+            <span className="image-index canvas-glass">ARK / IMG {activeAsset.id.replace('demo-', '').slice(-3)}</span>
           </div>
 
           {tool === 'mask' && (
@@ -212,27 +212,33 @@ export function Workspace({
           )}
 
           <div className="image-bottom-info">
-            <div className="image-title-block">
+            <div className="image-title-block canvas-glass canvas-title-glass">
               <span className="image-caption">CURRENT STUDY / {activeAsset.collection.toUpperCase()}</span>
               <h2>{source.title}</h2>
             </div>
-            <button
-              type="button" className={`image-keeper ${activeAsset.keeper ? 'is-keeper' : ''}`}
-              aria-label={activeAsset.keeper ? 'Remove from Keepers' : 'Mark as Keeper'}
-              onClick={() => onToggleKeeper(activeAsset.id)}
-            >
-              {activeAsset.keeper ? <Check size={15} /> : <Bookmark size={15} />}
-              {activeAsset.keeper ? 'Keeper' : 'Keep'}
-            </button>
           </div>
         </div>
 
-        <motion.div layout ref={toolbarRef} className="floating-toolbar" aria-label="Image tools" transition={arkMotion.toolbar}>
-          <button type="button" className="toolbar-head" aria-label={toolsOpen ? 'Collapse tools' : 'Expand tools'} aria-expanded={toolsOpen} onClick={() => setToolsOpen((open) => !open)}>
-            <span className="toolbar-head-dots"><i /><i /><i /></span>
-            <span className="toolbar-head-text">Tools</span>
-            <span className="toolbar-chevron">{toolsOpen ? '−' : '+'}</span>
+        <div className="canvas-top-dock" aria-label="Canvas quick actions">
+          <span className="image-flag canvas-glass" role="status">
+            <span className="flag-pip" />
+            {tool === 'mask' ? 'Mask editing' : tool === 'inspect' ? 'Detail inspection' : tool === 'compare' ? 'A / B comparison' : 'Preview mode'}
+          </span>
+          <button
+            type="button"
+            className={`image-keeper canvas-glass ${activeAsset.keeper ? 'is-keeper' : ''}`}
+            title={activeAsset.keeper ? 'Remove this image from Keepers' : 'Mark this image as Keeper'}
+            aria-label={activeAsset.keeper ? 'Remove from Keepers' : 'Mark as Keeper'}
+            aria-pressed={activeAsset.keeper}
+            onClick={() => onToggleKeeper(activeAsset.id)}
+          >
+            <Bookmark size={17} strokeWidth={1.8} fill={activeAsset.keeper ? 'currentColor' : 'none'} />
           </button>
+          <motion.div layout ref={toolbarRef} className="floating-toolbar canvas-glass" aria-label="Image tools" transition={arkMotion.toolbar}>
+            <button type="button" className="toolbar-head" title={toolsOpen ? 'Collapse canvas tools' : 'Open canvas tools'} aria-label={toolsOpen ? 'Collapse tools' : 'Expand tools'} aria-expanded={toolsOpen} onClick={() => setToolsOpen((open) => !open)}>
+              <SlidersHorizontal size={17} strokeWidth={1.8} />
+              <span className="toolbar-head-text">Tools</span>
+            </button>
           <AnimatePresence initial={false}>
             {toolsOpen && (
               <motion.div
@@ -276,7 +282,8 @@ export function Workspace({
               </motion.div>
             )}
           </AnimatePresence>
-        </motion.div>
+          </motion.div>
+        </div>
 
         <IterationDeck
           assets={lineage}

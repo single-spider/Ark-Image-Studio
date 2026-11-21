@@ -217,7 +217,6 @@ export function IterationDeck({
       <div className="iteration-heading">
         <span>ITERATIONS</span>
         <span className="iteration-count">{String(assets.length).padStart(2, '0')} / {String(totalCount).padStart(2, '0')}</span>
-        <span className="iteration-chain-label">LINEAGE VIEW</span>
       </div>
       <div className="iteration-list iteration-deck-list" ref={listRef} role="group" aria-label="Lineage frames">
         {assets.map((asset, index) => {
