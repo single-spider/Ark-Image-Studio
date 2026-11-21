@@ -126,6 +126,26 @@
   -webkit-backdrop-filter: blur(22px) saturate(150%);
   backdrop-filter: blur(22px) saturate(150%);
 }
+/* The image caption gets a light glass plaque; the picture remains primary. */
+.canvas-title-glass {
+  width: max-content;
+  max-width: min(72%, 540px);
+  border-radius: 14px;
+  padding: 11px 16px 13px;
+  background: linear-gradient(115deg,
+    rgba(246, 251, 237, .14),
+    rgba(28, 46, 35, .42) 41%,
+    rgba(8, 18, 15, .28) 100%);
+  border-color: rgba(251, 255, 243, .18);
+  -webkit-backdrop-filter: blur(13px) saturate(145%);
+  backdrop-filter: blur(13px) saturate(145%);
+}
+.canvas-title-glass h2 {
+  font-size: clamp(29px, 2.6vw, 43px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .canvas-top-dock {
   position: absolute;
   z-index: 28;
