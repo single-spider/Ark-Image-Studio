@@ -212,7 +212,7 @@ export function Workspace({
           )}
 
           <div className="image-bottom-info">
-            <div className="image-title-block">
+            <div className="image-title-block canvas-glass canvas-title-glass">
               <span className="image-caption">CURRENT STUDY / {activeAsset.collection.toUpperCase()}</span>
               <h2>{source.title}</h2>
             </div>
