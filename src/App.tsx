@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
-  Aperture, Check, ChevronDown, CircleHelp, Command, ExternalLink, FolderOpen,
+  Check, ChevronDown, CircleHelp, Command, ExternalLink, FolderOpen,
   Images, Layers3, Monitor, Moon, Palette, PanelRightClose, PanelRightOpen,
   Settings2, Sparkles, X,
 } from 'lucide-react';
@@ -218,8 +218,6 @@ export default function App() {
             <span className="crumb-kicker">CURRENT WORKSPACE</span>
             <div className="crumb-title"><FolderOpen size={14} /> Obsidian Session <span className="crumb-code">/ 004</span><ChevronDown size={13} /></div>
           </div>
-          <div className="topbar-spacer" />
-          <div className="topbar-preview"><span className="pulse-dot" /> INTERACTIVE DEMO <span className="preview-mini">/ MOCK API</span></div>
           <span className="topbar-divider small" />
           <div className="ark-topbar-library-controls">
             <button type="button" className="ark-topbar-library-button" title="Open Full Library (G)" aria-label="Open Full Library" onClick={() => openFullLibrary()}>
@@ -230,13 +228,12 @@ export default function App() {
               <span>Mini</span>
             </button>
           </div>
+          <div className="topbar-spacer" />
           <span className="topbar-divider small" />
           <div className="theme-selector"><Palette size={15} /><select aria-label="Color theme" value={theme} onChange={(event) => setTheme(event.target.value as StudioTheme)}><option value="nocturne">Nocturne</option><option value="mineral">Mineral</option><option value="ember">Ember</option></select><ChevronDown size={12} /></div>
           <button type="button" className="topbar-icon" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" onClick={() => setHelpOpen(true)}><CircleHelp size={18} /></button>
           <a className="topbar-icon" title="Open GitHub repository" aria-label="Open GitHub repository" href="https://github.com/single-spider/Ark-Image-Studio" target="_blank" rel="noreferrer"><ExternalLink size={17} /></a>
         </header>
-
-        <div className="app-overline"><span><Aperture size={14} /> CREATIVE WORKSPACE</span><span>DESIGN STUDY / NOCTURNE SYSTEM <span className="overline-index">001—003</span></span></div>
 
         <main className={`studio-layout ${miniLibraryOpen ? '' : 'gallery-collapsed'}`}>
           <Workspace
@@ -274,7 +271,7 @@ export default function App() {
         </main>
 
         <footer className="statusbar">
-          <div className="statusbar-left"><span className="statusbrand">ARK</span><span className="statusbar-rule" /> v2.0 PREVIEW <span className="statusbar-rule" /><span className="status-indicator"><span className="status-dot" /> FRONTEND READY</span></div>
+          <div className="statusbar-left"><span className="statusbrand">ARK</span><span className="statusbar-rule" /> v2.0 PREVIEW <span className="statusbar-rule" /><span className="status-indicator"><span className="status-dot" /> MOCK API / NO AI CALLS</span></div>
           <div className="statusbar-center"><Moon size={12} /> Crafted for the darkroom</div>
           <div className="statusbar-right"><Layers3 size={13} /> {assets.length} images <span className="statusbar-rule" /><Command size={13} /> Ctrl + Enter to simulate <span className="statusbar-rule" /><Settings2 size={13} /> React 19</div>
         </footer>
