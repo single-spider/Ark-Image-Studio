@@ -15,3 +15,22 @@ studio-heartbeat.json
 Downloads/
 generated/
 outputs/
+
+# Python desktop/backend build and user state
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.sqlite-shm
+*.sqlite-wal
+studio.db*
+ark_studio_config.json
+sorter-status.json
+legacy-location.json
+image_tree.json
+library_metadata/
+thumbnails/
+webview2_v2/
+# Do not commit real archive files or runtime state to public source control.
+v2/frontend/node_modules/
+v2/frontend/dist/
