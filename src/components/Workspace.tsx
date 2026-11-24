@@ -186,10 +186,10 @@ export function Workspace({
               setLensZoom((current) => Math.max(1.5, Math.min(4, Math.round((current + (event.deltaY < 0 ? 0.25 : -0.25)) * 100) / 100)));
             }
           }}
-          aria-label="Interactive image canvas" aria-busy={generating && tab === 'main'}
+          aria-label="Interactive image canvas"
         >
           <div className="stage-ambient" style={{ backgroundImage: `url("${source.src}")` }} />
-          <div className="stage-image-transform" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom / 100})` }}>
+          <div className="stage-image-transform" aria-busy={generating && tab === 'main'} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom / 100})` }}>
             {tool === 'compare' && tab === 'main' ? (
               <ArkImageComparison
                 baseSrc={compareSwapped ? compareAsset.src : source.src}
