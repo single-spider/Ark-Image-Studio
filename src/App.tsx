@@ -27,7 +27,12 @@ export default function App() {
   const [tab, setTab] = useState<WorkspaceTab>('main');
   const [tool, setTool] = useState<WorkspaceTool>('pan');
   const [zoom, setZoom] = useState(100);
-  const [theme, setTheme] = useState<StudioTheme>('nocturne');
+  const [theme, setTheme] = useState<StudioTheme>(() => {
+    try {
+      const saved = localStorage.getItem('ark-surface-theme');
+      return saved === 'mineral' || saved === 'ember' || saved === 'graphite' ? saved : 'nocturne';
+    } catch { return 'nocturne'; }
+  });
   const [prompt, setPrompt] = useState(defaultPrompt);
   const [negativePrompt, setNegativePrompt] = useState('Oversaturated, blurry, plastic textures, distorted geometry');
   const [model, setModel] = useState('Seedream 4.5');
@@ -74,6 +79,12 @@ export default function App() {
     try { window.localStorage.setItem('ark-mini-library-side', miniLibrarySide); }
     catch { /* Browser storage is optional. */ }
   }, [miniLibrarySide]);
+
+  useEffect(() => {
+    document.documentElement.dataset.arkTheme = theme;
+    try { localStorage.setItem('ark-surface-theme', theme); }
+    catch { /* Storage is optional. */ }
+  }, [theme]);
 
   function openFullLibrary(inspectId: string | null = null) {
     setLibraryInspectId(inspectId);
@@ -244,7 +255,7 @@ export default function App() {
           </div>
           <div className="topbar-spacer" />
           <span className="topbar-divider small" />
-          <div className="theme-selector"><Palette size={15} /><select aria-label="Color theme" value={theme} onChange={(event) => setTheme(event.target.value as StudioTheme)}><option value="nocturne">Nocturne</option><option value="mineral">Mineral</option><option value="ember">Ember</option></select><ChevronDown size={12} /></div>
+          <div className="theme-selector"><Palette size={15} /><select aria-label="Color theme" value={theme} onChange={(event) => setTheme(event.target.value as StudioTheme)}><option value="nocturne">Nocturne</option><option value="mineral">Mineral</option><option value="ember">Ember</option><option value="graphite">Graphite</option></select><ChevronDown size={12} /></div>
           <button type="button" className="topbar-icon" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" onClick={() => setHelpOpen(true)}><CircleHelp size={18} /></button>
           <a className="topbar-icon" title="Open GitHub repository" aria-label="Open GitHub repository" href="https://github.com/single-spider/Ark-Image-Studio" target="_blank" rel="noreferrer"><ExternalLink size={17} /></a>
         </header>
@@ -252,6 +263,7 @@ export default function App() {
         <main className={`studio-layout ${miniLibraryOpen ? '' : 'gallery-collapsed'}`} data-library-side={miniLibrarySide}>
           <Workspace
             assets={assets} activeAsset={activeAsset} compareAsset={compareAsset}
+            generating={generating} generationModel={model}
             tab={tab} tool={tool} zoom={zoom} onTabChange={setTab} onToolChange={setTool}
             onZoomChange={setZoom} onSelectAsset={selectAsset}
             lineage={visibleLineage} lineageCount={lineage.length}
