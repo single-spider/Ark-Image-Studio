@@ -1,26 +1,31 @@
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 
-/** Ark-owned dot-matrix activity indicator, inspired by the earlier Flickering Grid / Glyph Matrix research.
- * Indeterminate: the backend does not provide a reliable percentage yet.
- * Mounted only while a generation is active; no animation timers or canvas loop.
- */
+/** Full-canvas indeterminate activity. No image, card, or fabricated progress. */
 export function GenerationMatrix({ model }: { model: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ columns: 30, rows: 20 });
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const columns = Math.max(8, Math.min(56, Math.round(entry.contentRect.width / 27)));
+      const rows = Math.max(6, Math.min(40, Math.round(entry.contentRect.height / 27)));
+      setSize((old) => old.columns === columns && old.rows === rows ? old : { columns, rows });
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   return (
-    <div className="ark-generation-overlay" role="status" aria-live="polite">
-      <div className="ark-generation-card canvas-glass">
-        <div className="ark-generation-kicker"><span className="status-dot"/> GENERATION / ACTIVE</div>
-        <div className="ark-generation-matrix" aria-hidden="true">
-          {Array.from({ length: 105 }, (_, i) => {
-            const x = i % 15;
-            const y = Math.floor(i / 15);
-            const phase = Math.hypot(x - 7, y - 3) * .105 + ((i * 17) % 9) * .035;
-            return <span key={i} className="ark-generation-dot" style={{ '--dot-delay': `${-phase}s` } as CSSProperties}/>;
-          })}
-        </div>
-        <strong>Creating your image</strong>
-        <span className="ark-generation-model">{model} · Simulated preview</span>
-        <span className="ark-generation-note">Your current image stays in view until the new iteration is ready.</span>
+    <div ref={ref} className="ark-generation-field" role="status" aria-live="polite">
+      <div className="ark-generation-field-dots" aria-hidden="true" style={{ gridTemplateColumns: `repeat(${size.columns}, 1fr)`, gridTemplateRows: `repeat(${size.rows}, 1fr)` }}>
+        {Array.from({ length: size.columns * size.rows }, (_, i) => {
+          const x = i % size.columns, y = Math.floor(i / size.columns);
+          const phase = Math.hypot(x - (size.columns - 1) / 2, y - (size.rows - 1) / 2) * .08 + ((i * 17) % 9) * .04;
+          return <span key={i} className="ark-generation-dot" style={{ '--dot-delay': `${-phase}s` } as CSSProperties}/>;
+        })}
       </div>
+      <div className="ark-generation-field-status"><span className="status-dot"/> <strong>Generating image</strong><span>{model} · Mock preview</span></div>
     </div>
   );
 }

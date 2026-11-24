@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import type { ChangeEvent } from 'react';
+import { ReferencePicker } from './ReferencePicker';
 import { motion } from 'motion/react';
 import {
   ArrowUpRight, Bookmark, Check, ChevronDown, ChevronUp, CircleHelp,
@@ -7,10 +7,12 @@ import {
   Settings, Settings2, Sparkles, WandSparkles, X,
 } from 'lucide-react';
 import { promptPresets } from '../data/mock';
-import type { AspectRatio, ReferenceSlot } from '../types/studio';
+import type { AspectRatio, ReferenceSlot, StudioAsset } from '../types/studio';
 
 interface StudioControlsProps {
   references: ReferenceSlot[];
+  assets: StudioAsset[];
+  onReferencePick: (slotId: string, asset: StudioAsset) => void;
   prompt: string;
   negativePrompt: string;
   model: string;
@@ -37,7 +39,7 @@ const ratios: AspectRatio[] = ['1:1', '4:3', '3:2', '16:9', '9:16'];
 const models = ['Seedream 4.5', 'Seedream 4.0', 'Seedream 5.0 (preview)', 'Flux.1 Dev'];
 
 export function StudioControls({
-  references, prompt, negativePrompt, model, ratio, resolution, seed, creativity,
+  assets, references, onReferencePick, prompt, negativePrompt, model, ratio, resolution, seed, creativity,
   generating, onReferenceImport, onReferenceToggle, onReferenceClear,
   onPromptChange, onNegativePromptChange, onModelChange, onRatioChange,
   onResolutionChange, onSeedChange, onCreativityChange, onGenerate, onToast,
@@ -47,6 +49,8 @@ export function StudioControls({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [promptFocus, setPromptFocus] = useState(false);
   const [referenceOpen, setReferenceOpen] = useState(true);
+  const [picker, setPicker] = useState<{ id: string; anchor: HTMLButtonElement } | null>(null);
+  const pickerSlot = references.find((ref) => ref.id === picker?.id);
 
   function openSettings() {
     settingsRef.current?.showModal();
@@ -71,12 +75,6 @@ export function StudioControls({
         </div>
       </div>
     );
-  }
-
-  function handleImport(id: string, event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (file) onReferenceImport(id, file);
-    event.target.value = '';
   }
 
   async function copyPrompt() {
@@ -125,7 +123,7 @@ export function StudioControls({
       <section className={`control-section reference-section ${referenceOpen ? '' : 'references-collapsed'}`}>
         <div className="section-topline">
           <div><span className="section-kicker">INPUT MATERIAL</span><h3>References <span className="count-muted">/ 03</span></h3></div>
-          <button type="button" className="text-icon-button" onClick={() => setReferenceOpen((open) => !open)} aria-expanded={referenceOpen}>{referenceOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</button>
+          <button type="button" className="text-icon-button" onClick={() => { setPicker(null); setReferenceOpen((open) => !open); }} aria-expanded={referenceOpen}>{referenceOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</button>
         </div>
         {referenceOpen && (
           <>
@@ -140,13 +138,13 @@ export function StudioControls({
                   </div>
                   <div className="reference-actions">
                     <button type="button" title={reference.enabled ? 'Mute reference' : 'Enable reference'} aria-label={reference.enabled ? 'Mute reference' : 'Enable reference'} className={`ref-toggle ${reference.enabled ? 'on' : ''}`} onClick={() => onReferenceToggle(reference.id)}>{reference.enabled ? <Check size={12} /> : <Minus size={12} />}</button>
-                    <label className="ref-import" title="Replace reference" aria-label="Replace reference image"><Plus size={13} /><input type="file" accept="image/*" onChange={(event) => handleImport(reference.id, event)} /></label>
+                    <button type="button" className="ref-import" title="Choose reference from library" aria-label={`Choose ${reference.title} reference`} aria-haspopup="dialog" aria-expanded={picker?.id === reference.id} onClick={(event) => { const anchor = event.currentTarget; setPicker((current) => current?.id === reference.id ? null : { id: reference.id, anchor }); }}><Plus size={13}/></button>
                     {reference.src && <button type="button" title="Clear reference" aria-label="Clear reference" className="ref-clear" onClick={() => onReferenceClear(reference.id)}><X size={12} /></button>}
                   </div>
                 </div>
               ))}
             </div>
-            <div className="reference-foot"><span className="soft-pip" /> Drop in a visual direction <span>•</span> Local files supported</div>
+            <div className="reference-foot"><span className="soft-pip" /> Choose from library <span>•</span> Local files supported</div>
           </>
         )}
       </section>
@@ -190,6 +188,10 @@ export function StudioControls({
         </button>
         <div className="generate-caption"><span className="preview-indicator" /> Browser preview: generated results are simulated <span>•</span> No API charges</div>
       </section>
+      {picker && pickerSlot && <ReferencePicker key={picker.id} anchor={picker.anchor} slot={pickerSlot} assets={assets}
+        onClose={() => setPicker(null)}
+        onPick={(asset) => { onReferencePick(picker.id, asset); setPicker(null); }}
+        onImport={(file) => { onReferenceImport(picker.id, file); setPicker(null); }}/>}
       <dialog ref={settingsRef} className="generation-settings-dialog" aria-labelledby="generation-settings-title"
         onClose={() => { setSettingsOpen(false); settingsButtonRef.current?.focus(); }}
         onClick={(event) => { if (event.target === event.currentTarget) closeSettings(); }}>

@@ -26,6 +26,7 @@ export interface ReferenceSlot {
   title: string;
   role: string;
   src: string | null;
+  assetId?: string;
   enabled: boolean;
 }
 
