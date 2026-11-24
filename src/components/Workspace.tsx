@@ -23,6 +23,7 @@ interface WorkspaceProps {
   generating: boolean;
   generationModel: string;
   compareAsset: StudioAsset;
+  referenceAsset: StudioAsset | null;
   tab: WorkspaceTab;
   tool: WorkspaceTool;
   zoom: number;
@@ -52,12 +53,14 @@ const tools: Array<{ id: WorkspaceTool; label: string; Icon: typeof Hand }> = [
 ];
 
 export function Workspace({
-  assets, lineage, lineageCount, activeAsset, compareAsset, generating, generationModel, tab, tool, zoom, onTabChange,
+  assets, lineage, lineageCount, activeAsset, compareAsset, referenceAsset, generating, generationModel, tab, tool, zoom, onTabChange,
   onToolChange, onZoomChange, onSelectAsset, onCompareAsset, onBranchAsset,
   onSendToReference, onDeleteAsset, onToggleKeeper, onToast,
 }: WorkspaceProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const drawingRef = useRef(false);
+  const transformRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef({ zoom, pan: { x: 0, y: 0 } });
   const dragRef = useRef<{ x: number; y: number; startX: number; startY: number } | null>(null);
   const [lens, setLens] = useState<Point | null>(null);
   const [lensZoom, setLensZoom] = useState(2);
@@ -71,13 +74,42 @@ export function Workspace({
   const [iterationsOpen, setIterationsOpen] = useState(false);
   const drawerToggleRef = useRef<HTMLButtonElement>(null);
 
-  const source = tab === 'main' ? activeAsset : tab === 'reference' ? compareAsset : assets[2] ?? activeAsset;
+  const source = tab === 'main' ? activeAsset : tab === 'reference' ? referenceAsset ?? activeAsset : assets[2] ?? activeAsset;
+  const loading = generating && tab === 'main';
+  const emptyReference = tab === 'reference' && !referenceAsset;
+  const sourceInLibrary = assets.some((asset) => asset.id === source.id);
 
   useEffect(() => {
     setStrokes([]);
-    setPan({ x: 0, y: 0 });
+    resetView();
     setLens(null);
-  }, [source.id]);
+  }, [source.id, source.src, tab]);
+
+  useEffect(() => {
+    if (loading) {
+      drawingRef.current = false;
+      dragRef.current = null;
+      setToolsOpen(false);
+      setIterationsOpen(false);
+      setLens(null);
+    }
+  }, [loading]);
+
+  // React wheel events can be passive; a native listener prevents page scrolling.
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    function wheel(event: WheelEvent) {
+      event.preventDefault();
+      if (loading || emptyReference || drawingRef.current || dragRef.current || !event.deltaY) return;
+      const bounds = stage!.getBoundingClientRect();
+      const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? bounds.height : 1);
+      const next = viewRef.current.zoom * Math.exp(-Math.max(-200, Math.min(200, delta)) * 0.0025);
+      zoomAt(next, event.clientX - bounds.left - bounds.width / 2, event.clientY - bounds.top - bounds.height / 2);
+    }
+    stage.addEventListener('wheel', wheel, { passive: false });
+    return () => stage.removeEventListener('wheel', wheel);
+  }, [loading, emptyReference, tool, onZoomChange]);
 
   useEffect(() => {
     if (!toolsOpen) return;
@@ -91,7 +123,7 @@ export function Workspace({
   }, [toolsOpen]);
 
   function localPoint(event: ReactPointerEvent<HTMLDivElement>): Point {
-    const rect = event.currentTarget.getBoundingClientRect();
+    const rect = transformRef.current?.getBoundingClientRect() ?? event.currentTarget.getBoundingClientRect();
     return {
       x: Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100)),
       y: Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100)),
@@ -99,7 +131,7 @@ export function Workspace({
   }
 
   function pointerDown(event: ReactPointerEvent<HTMLDivElement>) {
-    if (event.button !== 0) return;
+    if (loading || emptyReference || event.button !== 0) return;
     if (tool === 'mask') {
       drawingRef.current = true;
       setStrokes((current) => [...current, [localPoint(event)]]);
@@ -111,6 +143,7 @@ export function Workspace({
   }
 
   function pointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (loading || emptyReference) return;
     const point = localPoint(event);
     if (tool === 'inspect') setLens(point);
     if (tool === 'mask' && drawingRef.current) {
@@ -122,7 +155,7 @@ export function Workspace({
       });
     }
     if (tool === 'pan' && dragRef.current) {
-      setPan({
+      updatePan({
         x: dragRef.current.startX + event.clientX - dragRef.current.x,
         y: dragRef.current.startY + event.clientY - dragRef.current.y,
       });
@@ -134,7 +167,25 @@ export function Workspace({
     dragRef.current = null;
   }
 
+  function updatePan(next: Point) {
+    viewRef.current.pan = next;
+    setPan(next);
+  }
+
+  function zoomAt(target: number, x = 0, y = 0) {
+    const current = viewRef.current;
+    const next = Math.max(25, Math.min(800, target));
+    const factor = next / current.zoom;
+    // Coordinates relative to the center-origin transform.
+    const nextPan = { x: x - (x - current.pan.x) * factor, y: y - (y - current.pan.y) * factor };
+    viewRef.current = { zoom: next, pan: nextPan };
+    setPan(nextPan);
+    onZoomChange(next);
+    if (tool === 'inspect') setLens(null);
+  }
+
   function resetView() {
+    viewRef.current = { zoom: 100, pan: { x: 0, y: 0 } };
     setPan({ x: 0, y: 0 });
     onZoomChange(100);
   }
@@ -150,7 +201,7 @@ export function Workspace({
           <span className="heading-separator" />
           <span className="heading-subtitle">Canvas</span>
         </div>
-        <div className="workspace-meta"><span className="status-dot" /> Canvas ready <span className="meta-separator">/</span> {zoom}%</div>
+        <div className="workspace-meta"><span className="status-dot" /> {loading ? 'Generating' : 'Canvas ready'} <span className="meta-separator">/</span> {Math.round(zoom)}%</div>
       </div>
 
       <div className="workspace-tabs" role="tablist" aria-label="Image source">
@@ -174,22 +225,23 @@ export function Workspace({
         <div
           ref={stageRef}
           className={`image-stage mode-${tool}`}
-          style={{ cursor: toolCursor }}
+          style={{ cursor: loading || emptyReference ? 'default' : toolCursor }}
           onPointerDown={pointerDown}
           onPointerMove={pointerMove}
           onPointerUp={pointerUp}
           onPointerCancel={pointerUp}
           onPointerLeave={() => setLens(null)}
-          onWheel={(event) => {
-            if (tool === 'inspect') {
-              event.preventDefault();
-              setLensZoom((current) => Math.max(1.5, Math.min(4, Math.round((current + (event.deltaY < 0 ? 0.25 : -0.25)) * 100) / 100)));
-            }
+          onDoubleClick={(event) => {
+            if (loading || emptyReference || tool !== 'pan') return;
+            if (zoom >= 200) return resetView();
+            const bounds = event.currentTarget.getBoundingClientRect();
+            zoomAt(200, event.clientX - bounds.left - bounds.width / 2, event.clientY - bounds.top - bounds.height / 2);
           }}
           aria-label="Interactive image canvas"
         >
+          {loading ? <GenerationMatrix model={generationModel}/> : emptyReference ? <div className="canvas-reference-empty">Choose an image in References to preview it here.</div> : <>
           <div className="stage-ambient" style={{ backgroundImage: `url("${source.src}")` }} />
-          <div className="stage-image-transform" aria-busy={generating && tab === 'main'} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom / 100})` }}>
+          <div ref={transformRef} className="stage-image-transform" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom / 100})` }}>
             {tool === 'compare' && tab === 'main' ? (
               <ArkImageComparison
                 baseSrc={compareSwapped ? compareAsset.src : source.src}
@@ -202,14 +254,6 @@ export function Workspace({
             ) : (
               <img className="stage-image" src={source.src} alt={source.title} draggable={false} />
             )}
-          </div>
-
-          <div className="image-top-overlay">
-            <span className="image-index canvas-glass">ARK / IMG {activeAsset.id.replace('demo-', '').slice(-3)}</span>
-          </div>
-
-          {generating && tab === 'main' && <GenerationMatrix model={generationModel}/>}
-
           {tool === 'mask' && (
             <svg className="mask-overlay" viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Painted mask overlay">
               {strokes.map((stroke, index) => (
@@ -217,24 +261,28 @@ export function Workspace({
               ))}
             </svg>
           )}
-
-          
+          </div>
+          <div className="image-top-overlay">
+            <span className="image-index canvas-glass">ARK / IMG {source.id.replace('demo-', '').slice(-3)}</span>
+          </div>
+          </>}
         </div>
 
-        <div className="canvas-top-dock" aria-label="Canvas quick actions">
+        {!loading && !emptyReference && <div className="canvas-top-dock" aria-label="Canvas quick actions">
           <span className="image-flag canvas-glass" role="status">
             <span className="flag-pip" />
             {tool === 'mask' ? 'Mask editing' : tool === 'inspect' ? 'Detail inspection' : tool === 'compare' ? 'A / B comparison' : 'Preview mode'}
           </span>
           <button
             type="button"
-            className={`image-keeper canvas-glass ${activeAsset.keeper ? 'is-keeper' : ''}`}
-            title={activeAsset.keeper ? 'Remove this image from Keepers' : 'Mark this image as Keeper'}
-            aria-label={activeAsset.keeper ? 'Remove from Keepers' : 'Mark as Keeper'}
-            aria-pressed={activeAsset.keeper}
-            onClick={() => onToggleKeeper(activeAsset.id)}
+            className={`image-keeper canvas-glass ${source.keeper ? 'is-keeper' : ''}`}
+            title={source.keeper ? 'Remove this image from Keepers' : 'Mark this image as Keeper'}
+            aria-label={source.keeper ? 'Remove from Keepers' : 'Mark as Keeper'}
+            aria-pressed={source.keeper}
+            disabled={!sourceInLibrary}
+            onClick={() => onToggleKeeper(source.id)}
           >
-            <Bookmark size={17} strokeWidth={1.8} fill={activeAsset.keeper ? 'currentColor' : 'none'} />
+            <Bookmark size={17} strokeWidth={1.8} fill={source.keeper ? 'currentColor' : 'none'} />
           </button>
           <motion.div layout ref={toolbarRef} className="floating-toolbar canvas-glass" aria-label="Image tools" transition={arkMotion.toolbar}>
             <button type="button" className="toolbar-head" title={toolsOpen ? 'Collapse canvas tools' : 'Open canvas tools'} aria-label={toolsOpen ? 'Collapse tools' : 'Expand tools'} aria-expanded={toolsOpen} onClick={() => setToolsOpen((open) => !open)}>
@@ -285,9 +333,9 @@ export function Workspace({
             )}
           </AnimatePresence>
           </motion.div>
-        </div>
+        </div>}
 
-        {iterationsOpen && (
+        {iterationsOpen && !loading && (
           <div className="canvas-iteration-drawer" id="canvas-iteration-drawer" role="region" aria-label="Iteration drawer"
             onKeyDown={(event) => {
               if (event.key === 'Escape' && !event.defaultPrevented) {
@@ -312,10 +360,10 @@ export function Workspace({
 
         <div className="viewport-foot">
           <div className="canvas-footer-identity">
-            <h2 className="canvas-footer-title" title={source.title}>{source.title}</h2>
-            <div className="foot-image-meta"><span className="mono-dot" /> {source.model} <span className="meta-separator">/</span> {source.ratio} <span className="meta-separator">/</span> Seed {source.seed}</div>
+            <h2 className="canvas-footer-title" title={source.title}>{loading ? 'Generating image…' : emptyReference ? 'No reference selected' : source.title}</h2>
+            <div className="foot-image-meta"><span className="mono-dot" /> {loading ? generationModel + ' · Mock preview' : emptyReference ? 'Reference workspace' : <>{source.model} <span className="meta-separator">/</span> {source.ratio} <span className="meta-separator">/</span> Seed {source.seed}</>}</div>
           </div>
-          <button ref={drawerToggleRef} type="button" className={`iteration-drawer-toggle ${iterationsOpen ? 'is-open' : ''}`} aria-expanded={iterationsOpen} aria-controls={iterationsOpen ? 'canvas-iteration-drawer' : undefined} title={iterationsOpen ? 'Collapse iterations' : 'Show iterations'} onClick={(event) => {
+          <button ref={drawerToggleRef} type="button" className={`iteration-drawer-toggle ${iterationsOpen ? 'is-open' : ''}`} disabled={loading} aria-expanded={iterationsOpen && !loading} aria-controls={iterationsOpen ? 'canvas-iteration-drawer' : undefined} title={iterationsOpen ? 'Collapse iterations' : 'Show iterations'} onClick={(event) => {
             if (!iterationsOpen && event.detail === 0) {
               requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('#canvas-iteration-drawer .iteration-thumb')?.focus());
             }
@@ -331,9 +379,9 @@ export function Workspace({
                 <span className="zoom-separator" />
               </>
             )}
-            <button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => onZoomChange(Math.max(50, zoom - 25))}><ZoomOut size={15} /></button>
-            <button type="button" className="zoom-readout" onClick={resetView} title="Reset zoom">{zoom}%</button>
-            <button type="button" title="Zoom in" aria-label="Zoom in" onClick={() => onZoomChange(Math.min(250, zoom + 25))}><ZoomIn size={15} /></button>
+            <button type="button" title="Zoom out" aria-label="Zoom out" disabled={loading || emptyReference} onClick={() => zoomAt(zoom / 1.25)}><ZoomOut size={15} /></button>
+            <button type="button" className="zoom-readout" disabled={loading || emptyReference} onClick={resetView} title="Reset zoom">{Math.round(zoom)}%</button>
+            <button type="button" title="Zoom in" aria-label="Zoom in" disabled={loading || emptyReference} onClick={() => zoomAt(zoom * 1.25)}><ZoomIn size={15} /></button>
 
           </div>
         </div>
