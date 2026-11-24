@@ -5,6 +5,7 @@ import { ArkImageComparison } from './primitives/ArkImageComparison';
 import { ArkImageLens } from './primitives/ArkImageLens';
 import { arkMotion } from '../lib/motion';
 import { IterationDeck } from './IterationDeck';
+import { GenerationMatrix } from './GenerationMatrix';
 import {
   Aperture, ArrowLeftRight, Bookmark, Brush, ChevronUp, Expand, GitCompareArrows,
   Hand, Layers3, Maximize2, Minus, Plus, RotateCcw, ScanSearch, SlidersHorizontal, ZoomIn, ZoomOut,
@@ -19,6 +20,8 @@ interface WorkspaceProps {
   lineage: StudioAsset[];
   lineageCount: number;
   activeAsset: StudioAsset;
+  generating: boolean;
+  generationModel: string;
   compareAsset: StudioAsset;
   tab: WorkspaceTab;
   tool: WorkspaceTool;
@@ -49,7 +52,7 @@ const tools: Array<{ id: WorkspaceTool; label: string; Icon: typeof Hand }> = [
 ];
 
 export function Workspace({
-  assets, lineage, lineageCount, activeAsset, compareAsset, tab, tool, zoom, onTabChange,
+  assets, lineage, lineageCount, activeAsset, compareAsset, generating, generationModel, tab, tool, zoom, onTabChange,
   onToolChange, onZoomChange, onSelectAsset, onCompareAsset, onBranchAsset,
   onSendToReference, onDeleteAsset, onToggleKeeper, onToast,
 }: WorkspaceProps) {
@@ -186,7 +189,7 @@ export function Workspace({
           aria-label="Interactive image canvas"
         >
           <div className="stage-ambient" style={{ backgroundImage: `url("${source.src}")` }} />
-          <div className="stage-image-transform" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom / 100})` }}>
+          <div className="stage-image-transform" aria-busy={generating && tab === 'main'} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom / 100})` }}>
             {tool === 'compare' && tab === 'main' ? (
               <ArkImageComparison
                 baseSrc={compareSwapped ? compareAsset.src : source.src}
@@ -204,6 +207,8 @@ export function Workspace({
           <div className="image-top-overlay">
             <span className="image-index canvas-glass">ARK / IMG {activeAsset.id.replace('demo-', '').slice(-3)}</span>
           </div>
+
+          {generating && tab === 'main' && <GenerationMatrix model={generationModel}/>}
 
           {tool === 'mask' && (
             <svg className="mask-overlay" viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Painted mask overlay">

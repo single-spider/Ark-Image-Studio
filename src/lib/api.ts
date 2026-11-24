@@ -11,7 +11,7 @@ export interface StudioApi {
  */
 export const mockStudioApi: StudioApi = {
   async generate(request) {
-    await new Promise<void>((resolve) => setTimeout(resolve, 1650));
+    await new Promise<void>((resolve) => setTimeout(resolve, 2800));
     const candidate = mockAssets[Math.floor(Math.random() * mockAssets.length)];
     return {
       ...candidate,
