@@ -6,7 +6,7 @@ import { ArkImageLens } from './primitives/ArkImageLens';
 import { arkMotion } from '../lib/motion';
 import { IterationDeck } from './IterationDeck';
 import {
-  Aperture, ArrowLeftRight, Bookmark, Brush, Expand, Eye, GitCompareArrows,
+  Aperture, ArrowLeftRight, Bookmark, Brush, ChevronUp, Expand, GitCompareArrows,
   Hand, Layers3, Maximize2, Minus, Plus, RotateCcw, ScanSearch, SlidersHorizontal, ZoomIn, ZoomOut,
 } from 'lucide-react';
 import type { StudioAsset, WorkspaceTab, WorkspaceTool } from '../types/studio';
@@ -65,6 +65,8 @@ export function Workspace({
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [iterationsOpen, setIterationsOpen] = useState(false);
+  const drawerToggleRef = useRef<HTMLButtonElement>(null);
 
   const source = tab === 'main' ? activeAsset : tab === 'reference' ? compareAsset : assets[2] ?? activeAsset;
 
@@ -211,12 +213,7 @@ export function Workspace({
             </svg>
           )}
 
-          <div className="image-bottom-info">
-            <div className="image-title-block canvas-glass canvas-title-glass">
-              <span className="image-caption">CURRENT STUDY / {activeAsset.collection.toUpperCase()}</span>
-              <h2>{source.title}</h2>
-            </div>
-          </div>
+          
         </div>
 
         <div className="canvas-top-dock" aria-label="Canvas quick actions">
@@ -285,20 +282,42 @@ export function Workspace({
           </motion.div>
         </div>
 
-        <IterationDeck
-          assets={lineage}
-          totalCount={lineageCount}
-          activeId={activeAsset.id}
-          onSelect={onSelectAsset}
-          onCompare={onCompareAsset}
-          onBranch={onBranchAsset}
-          onSendToReference={onSendToReference}
-          onToggleKeeper={onToggleKeeper}
-          onDelete={onDeleteAsset}
-        />
+        {iterationsOpen && (
+          <div className="canvas-iteration-drawer" id="canvas-iteration-drawer" role="region" aria-label="Iteration drawer"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape' && !event.defaultPrevented) {
+                event.stopPropagation();
+                setIterationsOpen(false);
+                drawerToggleRef.current?.focus();
+              }
+            }}>
+            <IterationDeck
+              assets={lineage}
+              totalCount={lineageCount}
+              activeId={activeAsset.id}
+              onSelect={onSelectAsset}
+              onCompare={onCompareAsset}
+              onBranch={onBranchAsset}
+              onSendToReference={onSendToReference}
+              onToggleKeeper={onToggleKeeper}
+              onDelete={onDeleteAsset}
+            />
+          </div>
+        )}
 
         <div className="viewport-foot">
-          <div className="foot-image-meta"><span className="mono-dot" /> {activeAsset.model} <span className="meta-separator">/</span> {activeAsset.ratio} <span className="meta-separator">/</span> Seed {activeAsset.seed}</div>
+          <div className="canvas-footer-identity">
+            <h2 className="canvas-footer-title" title={source.title}>{source.title}</h2>
+            <div className="foot-image-meta"><span className="mono-dot" /> {source.model} <span className="meta-separator">/</span> {source.ratio} <span className="meta-separator">/</span> Seed {source.seed}</div>
+          </div>
+          <button ref={drawerToggleRef} type="button" className={`iteration-drawer-toggle ${iterationsOpen ? 'is-open' : ''}`} aria-expanded={iterationsOpen} aria-controls={iterationsOpen ? 'canvas-iteration-drawer' : undefined} title={iterationsOpen ? 'Collapse iterations' : 'Show iterations'} onClick={(event) => {
+            if (!iterationsOpen && event.detail === 0) {
+              requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('#canvas-iteration-drawer .iteration-thumb')?.focus());
+            }
+            setIterationsOpen((open) => !open);
+          }}>
+            <Layers3 size={14}/><span>Iterations</span><span className="drawer-count">{lineageCount}</span><ChevronUp size={13} className="drawer-chevron"/>
+          </button>
           <div className="viewport-zoom">
             {tool === 'mask' && (
               <>
@@ -310,8 +329,7 @@ export function Workspace({
             <button type="button" title="Zoom out" aria-label="Zoom out" onClick={() => onZoomChange(Math.max(50, zoom - 25))}><ZoomOut size={15} /></button>
             <button type="button" className="zoom-readout" onClick={resetView} title="Reset zoom">{zoom}%</button>
             <button type="button" title="Zoom in" aria-label="Zoom in" onClick={() => onZoomChange(Math.min(250, zoom + 25))}><ZoomIn size={15} /></button>
-            <span className="zoom-separator" />
-            <Eye size={14} className="muted-icon" />
+
           </div>
         </div>
       </div>

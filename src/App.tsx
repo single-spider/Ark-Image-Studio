@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
-  Check, ChevronDown, CircleHelp, Command, ExternalLink, FolderOpen,
-  Images, Layers3, Monitor, Moon, Palette, PanelRightClose, PanelRightOpen,
+  ArrowLeftRight, Check, ChevronDown, CircleHelp, Command, ExternalLink, FolderOpen,
+  Images, Layers3, Monitor, Moon, Palette, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen,
   Settings2, Sparkles, X,
 } from 'lucide-react';
 import { Gallery } from './components/Gallery';
@@ -42,6 +42,10 @@ export default function App() {
     try { return window.localStorage.getItem('ark-mini-library-visible') !== 'false'; }
     catch { return true; }
   });
+  const [miniLibrarySide, setMiniLibrarySide] = useState<'left' | 'right'>(() => {
+    try { return window.localStorage.getItem('ark-mini-library-side') === 'left' ? 'left' : 'right'; }
+    catch { return 'right'; }
+  });
   const [fullLibraryOpen, setFullLibraryOpen] = useState(false);
   const [libraryInspectId, setLibraryInspectId] = useState<string | null>(null);
   const [branchOriginId, setBranchOriginId] = useState<string | null>(null);
@@ -65,6 +69,11 @@ export default function App() {
     try { window.localStorage.setItem('ark-mini-library-visible', String(miniLibraryOpen)); }
     catch { /* Browser storage is optional. */ }
   }, [miniLibraryOpen]);
+
+  useEffect(() => {
+    try { window.localStorage.setItem('ark-mini-library-side', miniLibrarySide); }
+    catch { /* Browser storage is optional. */ }
+  }, [miniLibrarySide]);
 
   function openFullLibrary(inspectId: string | null = null) {
     setLibraryInspectId(inspectId);
@@ -178,7 +187,7 @@ export default function App() {
     const handleKeys = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
       const editing = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
-      if (fullLibraryOpen) return;
+      if (fullLibraryOpen || document.querySelector('dialog[open]')) return;
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); void generate(); return; }
       if (event.key === 'Escape') { setHelpOpen(false); return; }
       if (editing || event.ctrlKey || event.metaKey || event.altKey) return;
@@ -224,8 +233,13 @@ export default function App() {
               <Images size={16}/><span>Library</span>
             </button>
             <button type="button" className={`ark-topbar-library-button ${miniLibraryOpen ? 'active' : ''}`} title={miniLibraryOpen ? 'Collapse Mini Library (L)' : 'Show Mini Library (L)'} aria-label={miniLibraryOpen ? 'Collapse Mini Library' : 'Show Mini Library'} aria-pressed={miniLibraryOpen} onClick={() => setMiniLibraryOpen((open) => !open)}>
-              {miniLibraryOpen ? <PanelRightClose size={17}/> : <PanelRightOpen size={17}/>}
+              {miniLibrarySide === 'left'
+                ? (miniLibraryOpen ? <PanelLeftClose size={17}/> : <PanelLeftOpen size={17}/>)
+                : (miniLibraryOpen ? <PanelRightClose size={17}/> : <PanelRightOpen size={17}/> )}
               <span>Mini</span>
+            </button>
+            <button type="button" className="ark-topbar-library-button mini-side-toggle" title={`Move Mini Library to ${miniLibrarySide === 'left' ? 'right' : 'left'}`} aria-label={`Move Mini Library to ${miniLibrarySide === 'left' ? 'right' : 'left'}`} onClick={() => setMiniLibrarySide((side) => side === 'left' ? 'right' : 'left')}>
+              <ArrowLeftRight size={15}/>
             </button>
           </div>
           <div className="topbar-spacer" />
@@ -235,7 +249,7 @@ export default function App() {
           <a className="topbar-icon" title="Open GitHub repository" aria-label="Open GitHub repository" href="https://github.com/single-spider/Ark-Image-Studio" target="_blank" rel="noreferrer"><ExternalLink size={17} /></a>
         </header>
 
-        <main className={`studio-layout ${miniLibraryOpen ? '' : 'gallery-collapsed'}`}>
+        <main className={`studio-layout ${miniLibraryOpen ? '' : 'gallery-collapsed'}`} data-library-side={miniLibrarySide}>
           <Workspace
             assets={assets} activeAsset={activeAsset} compareAsset={compareAsset}
             tab={tab} tool={tool} zoom={zoom} onTabChange={setTab} onToolChange={setTool}
