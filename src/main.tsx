@@ -5,6 +5,7 @@ import App from './App';
 import './styles.css';
 import './styles/canvas-polish.css';
 import './styles/prompt-first.css';
+import './styles/material-themes.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
