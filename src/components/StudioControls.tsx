@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { motion } from 'motion/react';
 import {
   ArrowUpRight, Bookmark, Check, ChevronDown, ChevronUp, CircleHelp,
   Clipboard, Copy, ImagePlus, LoaderCircle, Minus, Plus, RotateCcw,
-  Settings2, SlidersHorizontal, Sparkles, WandSparkles, X,
+  Settings, Settings2, Sparkles, WandSparkles, X,
 } from 'lucide-react';
 import { promptPresets } from '../data/mock';
 import type { AspectRatio, ReferenceSlot } from '../types/studio';
@@ -42,9 +42,36 @@ export function StudioControls({
   onPromptChange, onNegativePromptChange, onModelChange, onRatioChange,
   onResolutionChange, onSeedChange, onCreativityChange, onGenerate, onToast,
 }: StudioControlsProps) {
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const settingsRef = useRef<HTMLDialogElement>(null);
+  const settingsButtonRef = useRef<HTMLButtonElement>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [promptFocus, setPromptFocus] = useState(false);
   const [referenceOpen, setReferenceOpen] = useState(true);
+
+  function openSettings() {
+    settingsRef.current?.showModal();
+    setSettingsOpen(true);
+  }
+
+  function closeSettings() {
+    settingsRef.current?.close();
+  }
+
+  function ratioField(surface: 'quick' | 'settings') {
+    return (
+      <div className={`field-group ratio-field ratio-field--${surface}`}>
+        <div className="field-label">Aspect ratio <span className="field-hint">Canvas format</span></div>
+        <div className="ratio-switcher" role="group" aria-label={surface === 'quick' ? 'Quick aspect ratio' : 'Generation aspect ratio'}>
+          {ratios.map((value) => (
+            <button type="button" key={value} aria-pressed={ratio === value} className={`ratio-option ${ratio === value ? 'active' : ''}`} onClick={() => onRatioChange(value)}>
+              {ratio === value && <motion.span layoutId={`ratio-active-${surface}`} className="ratio-highlight" transition={{ type: 'spring', stiffness: 370, damping: 34 }} />}
+              <span>{value}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   function handleImport(id: string, event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -95,7 +122,7 @@ export function StudioControls({
         <button type="button" className="icon-button soft" title="About preview mode" aria-label="About preview mode" onClick={() => onToast('Interactive preview', 'Generation is simulated. Real backend routes are not connected yet.')}><CircleHelp size={16} /></button>
       </div>
 
-      <section className="control-section reference-section">
+      <section className={`control-section reference-section ${referenceOpen ? '' : 'references-collapsed'}`}>
         <div className="section-topline">
           <div><span className="section-kicker">INPUT MATERIAL</span><h3>References <span className="count-muted">/ 03</span></h3></div>
           <button type="button" className="text-icon-button" onClick={() => setReferenceOpen((open) => !open)} aria-expanded={referenceOpen}>{referenceOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</button>
@@ -134,40 +161,10 @@ export function StudioControls({
         </div>
       </section>
 
-      <section className="control-section model-section">
-        <div className="section-topline compact"><div><span className="section-kicker">ENGINE & OUTPUT</span><h3>Generation setup</h3></div><SlidersHorizontal size={15} className="muted-icon" /></div>
-        <div className="field-group">
-          <label className="field-label" htmlFor="model-select">Model <span className="field-hint">Image engine</span></label>
-          <div className="select-wrap">
-            <select id="model-select" value={model} onChange={(event) => onModelChange(event.target.value)}>{models.map((value) => <option key={value} value={value}>{value}</option>)}</select>
-            <ChevronDown size={15} />
-          </div>
-        </div>
-        <div className="field-group">
-          <label className="field-label">Aspect ratio <span className="field-hint">Canvas format</span></label>
-          <div className="ratio-switcher" role="group" aria-label="Aspect ratio">
-            {ratios.map((value) => (
-              <button type="button" key={value} aria-pressed={ratio === value} className={`ratio-option ${ratio === value ? 'active' : ''}`} onClick={() => onRatioChange(value)}>
-                {ratio === value && <motion.span layoutId="ratio-active" className="ratio-highlight" transition={{ type: 'spring', stiffness: 370, damping: 34 }} />}
-                <span>{value}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="dual-fields">
-          <div className="field-group">
-            <label className="field-label" htmlFor="resolution-select">Resolution</label>
-            <div className="select-wrap"><select id="resolution-select" value={resolution} onChange={(event) => onResolutionChange(event.target.value)}><option>1K</option><option>2K</option><option>4K</option></select><ChevronDown size={14} /></div>
-          </div>
-          <div className="field-group">
-            <label className="field-label" htmlFor="seed-input">Seed</label>
-            <input id="seed-input" className="field-input" type="text" inputMode="numeric" placeholder="Random" value={seed} onChange={(event) => onSeedChange(event.target.value)} />
-          </div>
-        </div>
-      </section>
+
 
       <section className="control-section prompt-section">
-        <div className="section-topline compact"><div><span className="section-kicker">CREATIVE DIRECTION</span><h3>Prompt studio</h3></div><button type="button" title="Copy prompt" className="text-icon-button" onClick={() => { void copyPrompt(); }}><Clipboard size={15} /></button></div>
+        <div className="section-topline compact"><div><span className="section-kicker">CREATIVE DIRECTION</span><h3>Prompt studio</h3></div><div className="prompt-heading-actions"><button type="button" title="Copy prompt" aria-label="Copy prompt" className="text-icon-button" onClick={() => { void copyPrompt(); }}><Clipboard size={16} /></button><button ref={settingsButtonRef} type="button" title="Generation setup" aria-label="Open generation setup" aria-haspopup="dialog" aria-expanded={settingsOpen} className="text-icon-button generation-gear" onClick={openSettings}><Settings size={18}/></button></div></div>
         <div className={`prompt-composer ${promptFocus ? 'focused' : ''}`}>
           <div className="prompt-composer-top"><Sparkles size={14} /><span>DESCRIBE YOUR VISION</span><span className="prompt-char-count">{prompt.length} chars</span></div>
           <textarea
@@ -183,15 +180,8 @@ export function StudioControls({
             <button type="button" key={preset} onClick={() => onPromptChange(`${prompt.trim()}${prompt.trim() ? ', ' : ''}${preset.toLowerCase()}`)}><Plus size={12} />{preset}</button>
           ))}
         </div>
-        <button type="button" className="advanced-toggle" onClick={() => setAdvancedOpen((open) => !open)} aria-expanded={advancedOpen}><span><Settings2 size={15} /> Advanced controls</span>{advancedOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</button>
-        {advancedOpen && (
-          <div className="advanced-panel">
-            <label className="field-label" htmlFor="negative-prompt">Negative prompt</label>
-            <textarea id="negative-prompt" value={negativePrompt} onChange={(event) => onNegativePromptChange(event.target.value)} placeholder="Artifacts, unwanted details, blur..." rows={2} />
-            <div className="creativity-row"><label htmlFor="creativity-range">Creative variation</label><span>{creativity}%</span></div>
-            <input id="creativity-range" type="range" min="0" max="100" value={creativity} onChange={(event) => onCreativityChange(Number(event.target.value))} />
-          </div>
-        )}
+        {ratioField('quick')}
+        <div className="prompt-output-summary"><span>{model}</span><span>{resolution} · {seed.trim() ? 'Fixed seed' : 'Random seed'}</span></div>
         <button type="button" className="generate-button" disabled={generating || !prompt.trim()} onClick={onGenerate}>
           <span className="generate-button-shine" />
           {generating ? <LoaderCircle className="spin" size={19} /> : <Sparkles size={19} />}
@@ -200,6 +190,45 @@ export function StudioControls({
         </button>
         <div className="generate-caption"><span className="preview-indicator" /> Browser preview: generated results are simulated <span>•</span> No API charges</div>
       </section>
+      <dialog ref={settingsRef} className="generation-settings-dialog" aria-labelledby="generation-settings-title"
+        onClose={() => { setSettingsOpen(false); settingsButtonRef.current?.focus(); }}
+        onClick={(event) => { if (event.target === event.currentTarget) closeSettings(); }}>
+        <div className="generation-settings-card">
+          <header className="generation-settings-header">
+            <div><span className="section-kicker">ENGINE & OUTPUT</span><h2 id="generation-settings-title">Generation setup</h2></div>
+            <button type="button" className="text-icon-button" aria-label="Close generation setup" title="Close settings (Esc)" onClick={closeSettings}><X size={20}/></button>
+          </header>
+          <div className="generation-settings-fields">
+        <div className="field-group">
+          <label className="field-label" htmlFor="model-select">Model <span className="field-hint">Image engine</span></label>
+          <div className="select-wrap">
+            <select id="model-select" value={model} onChange={(event) => onModelChange(event.target.value)}>{models.map((value) => <option key={value} value={value}>{value}</option>)}</select>
+            <ChevronDown size={15} />
+          </div>
+        </div>
+        {ratioField('settings')}
+        <div className="dual-fields">
+          <div className="field-group">
+            <label className="field-label" htmlFor="resolution-select">Resolution</label>
+            <div className="select-wrap"><select id="resolution-select" value={resolution} onChange={(event) => onResolutionChange(event.target.value)}><option>1K</option><option>2K</option><option>4K</option></select><ChevronDown size={14} /></div>
+          </div>
+          <div className="field-group">
+            <label className="field-label" htmlFor="seed-input">Seed</label>
+            <input id="seed-input" className="field-input" type="text" inputMode="numeric" placeholder="Random" value={seed} onChange={(event) => onSeedChange(event.target.value)} />
+          </div>
+        </div>
+        </div>
+          <div className="generation-advanced-heading">Advanced controls <span>Preview parameters</span></div>
+          <div className="advanced-panel">
+            <label className="field-label" htmlFor="negative-prompt">Negative prompt</label>
+            <textarea id="negative-prompt" value={negativePrompt} onChange={(event) => onNegativePromptChange(event.target.value)} placeholder="Artifacts, unwanted details, blur..." rows={2} />
+            <div className="creativity-row"><label htmlFor="creativity-range">Creative variation</label><span>{creativity}%</span></div>
+            <input id="creativity-range" type="range" min="0" max="100" value={creativity} onChange={(event) => onCreativityChange(Number(event.target.value))} />
+          </div>
+
+          <footer className="generation-settings-footer"><span>Changes apply immediately.</span><button type="button" onClick={closeSettings}>Done <Check size={15}/></button></footer>
+        </div>
+      </dialog>
     </aside>
   );
 }
