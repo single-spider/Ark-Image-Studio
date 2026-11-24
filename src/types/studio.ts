@@ -1,4 +1,4 @@
-export type StudioTheme = 'nocturne' | 'mineral' | 'ember';
+export type StudioTheme = 'nocturne' | 'mineral' | 'ember' | 'graphite';
 export type WorkspaceTab = 'main' | 'reference' | 'extra';
 export type WorkspaceTool = 'pan' | 'inspect' | 'compare' | 'mask';
 export type GalleryFilter = 'all' | 'keepers' | 'recent';
