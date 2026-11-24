@@ -310,7 +310,12 @@ export function Workspace({
             <h2 className="canvas-footer-title" title={source.title}>{source.title}</h2>
             <div className="foot-image-meta"><span className="mono-dot" /> {source.model} <span className="meta-separator">/</span> {source.ratio} <span className="meta-separator">/</span> Seed {source.seed}</div>
           </div>
-          <button ref={drawerToggleRef} type="button" className={`iteration-drawer-toggle ${iterationsOpen ? 'is-open' : ''}`} aria-expanded={iterationsOpen} aria-controls={iterationsOpen ? 'canvas-iteration-drawer' : undefined} title={iterationsOpen ? 'Collapse iterations' : 'Show iterations'} onClick={() => setIterationsOpen((open) => !open)}>
+          <button ref={drawerToggleRef} type="button" className={`iteration-drawer-toggle ${iterationsOpen ? 'is-open' : ''}`} aria-expanded={iterationsOpen} aria-controls={iterationsOpen ? 'canvas-iteration-drawer' : undefined} title={iterationsOpen ? 'Collapse iterations' : 'Show iterations'} onClick={(event) => {
+            if (!iterationsOpen && event.detail === 0) {
+              requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('#canvas-iteration-drawer .iteration-thumb')?.focus());
+            }
+            setIterationsOpen((open) => !open);
+          }}>
             <Layers3 size={14}/><span>Iterations</span><span className="drawer-count">{lineageCount}</span><ChevronUp size={13} className="drawer-chevron"/>
           </button>
           <div className="viewport-zoom">
