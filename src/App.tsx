@@ -41,6 +41,7 @@ export default function App() {
   const [seed, setSeed] = useState('');
   const [creativity, setCreativity] = useState(42);
   const [generating, setGenerating] = useState(false);
+  const [generationModel, setGenerationModel] = useState('Seedream 4.5');
   const [notice, setNotice] = useState<StudioNotice | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [miniLibraryOpen, setMiniLibraryOpen] = useState(() => {
@@ -172,7 +173,9 @@ export default function App() {
 
   async function generate() {
     if (generating || !prompt.trim()) return;
+    setGenerationModel(model);
     setGenerating(true);
+    setTab('main');
     toast('Mock generation started', 'Simulating a result locally. No AI service is called.');
     try {
       const parent = assets.find((asset) => asset.id === (branchOriginId ?? activeId)) ?? activeAsset;
@@ -263,7 +266,7 @@ export default function App() {
         <main className={`studio-layout ${miniLibraryOpen ? '' : 'gallery-collapsed'}`} data-library-side={miniLibrarySide}>
           <Workspace
             assets={assets} activeAsset={activeAsset} compareAsset={compareAsset}
-            generating={generating} generationModel={model}
+            generating={generating} generationModel={generationModel}
             tab={tab} tool={tool} zoom={zoom} onTabChange={setTab} onToolChange={setTool}
             onZoomChange={setZoom} onSelectAsset={selectAsset}
             lineage={visibleLineage} lineageCount={lineage.length}
