@@ -14,3 +14,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </MotionConfig>
   </React.StrictMode>,
 );
+
+import './styles/canvas-modes.css';
