@@ -24,6 +24,7 @@ export default function App() {
   const [activeId, setActiveId] = useState(mockAssets[0].id);
   const [compareId, setCompareId] = useState(mockAssets[1].id);
   const [references, setReferences] = useState<ReferenceSlot[]>(initialReferences);
+  const [referencePreviewId, setReferencePreviewId] = useState(initialReferences[0].id);
   const [tab, setTab] = useState<WorkspaceTab>('main');
   const [tool, setTool] = useState<WorkspaceTool>('pan');
   const [zoom, setZoom] = useState(100);
@@ -58,6 +59,11 @@ export default function App() {
 
   const activeAsset = assets.find((asset) => asset.id === activeId) ?? assets[0];
   const compareAsset = assets.find((asset) => asset.id === compareId) ?? assets[1] ?? activeAsset;
+  const previewSlot = references.find((ref) => ref.id === referencePreviewId && ref.src) ?? references.find((ref) => ref.src);
+  const referenceAsset: StudioAsset | null = previewSlot?.src ? (
+    assets.find((asset) => asset.id === previewSlot.assetId || asset.src === previewSlot.src || asset.thumb === previewSlot.src)
+    ?? { id: previewSlot.id, src: previewSlot.src, thumb: previewSlot.src, title: previewSlot.title, prompt: '', seed: 0, model: 'Reference image', createdAt: '', collection: 'References', ratio: '4:3', keeper: false }
+  ) : null;
   const lineage = getLineage(assets, activeAsset);
   const visibleLineage = getLineageWindow(lineage, activeAsset.id);
 
@@ -129,9 +135,19 @@ export default function App() {
     toast('Branch ready', 'Edit the inherited prompt, then generate a mock child iteration.');
   }
 
+  function pickReference(slotId: string, asset: StudioAsset) {
+    setReferences((current) => current.map((ref) => ref.id === slotId ? { ...ref, src: asset.src, assetId: asset.id, enabled: true } : ref));
+    setReferencePreviewId(slotId);
+    setTab('reference');
+    setTool('pan');
+  }
+
   function importReference(id: string, file: File) {
     const src = URL.createObjectURL(file);
-    setReferences((current) => current.map((ref) => ref.id === id ? { ...ref, src, enabled: true } : ref));
+    setReferences((current) => current.map((ref) => ref.id === id ? { ...ref, src, assetId: undefined, enabled: true } : ref));
+    setReferencePreviewId(id);
+    setTab('reference');
+    setTool('pan');
     toast('Reference imported', file.name);
   }
 
@@ -139,7 +155,8 @@ export default function App() {
     const asset = assets.find((item) => item.id === id);
     if (!asset) return;
     const slot = references.find((ref) => !ref.enabled || !ref.src) ?? references[2];
-    setReferences((current) => current.map((ref) => ref.id === slot.id ? { ...ref, src: asset.src, enabled: true } : ref));
+    setReferences((current) => current.map((ref) => ref.id === slot.id ? { ...ref, src: asset.src, assetId: asset.id, enabled: true } : ref));
+    setReferencePreviewId(slot.id);
     toast('Added to reference', asset.title);
   }
 
@@ -201,7 +218,7 @@ export default function App() {
     const handleKeys = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
       const editing = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
-      if (fullLibraryOpen || document.querySelector('dialog[open]')) return;
+      if (fullLibraryOpen || document.querySelector('dialog[open], .ark-reference-picker')) return;
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); void generate(); return; }
       if (event.key === 'Escape') { setHelpOpen(false); return; }
       if (editing || event.ctrlKey || event.metaKey || event.altKey) return;
@@ -265,7 +282,7 @@ export default function App() {
 
         <main className={`studio-layout ${miniLibraryOpen ? '' : 'gallery-collapsed'}`} data-library-side={miniLibrarySide}>
           <Workspace
-            assets={assets} activeAsset={activeAsset} compareAsset={compareAsset}
+            assets={assets} activeAsset={activeAsset} compareAsset={compareAsset} referenceAsset={referenceAsset}
             generating={generating} generationModel={generationModel}
             tab={tab} tool={tool} zoom={zoom} onTabChange={setTab} onToolChange={setTool}
             onZoomChange={setZoom} onSelectAsset={selectAsset}
@@ -275,12 +292,12 @@ export default function App() {
             onToggleKeeper={toggleKeeper} onToast={toast}
           />
           <StudioControls
-            references={references} prompt={prompt} negativePrompt={negativePrompt}
+            assets={assets} references={references} onReferencePick={pickReference} prompt={prompt} negativePrompt={negativePrompt}
             model={model} ratio={ratio} resolution={resolution} seed={seed}
             creativity={creativity} generating={generating}
             onReferenceImport={importReference}
             onReferenceToggle={(id) => setReferences((current) => current.map((ref) => ref.id === id ? { ...ref, enabled: !ref.enabled } : ref))}
-            onReferenceClear={(id) => setReferences((current) => current.map((ref) => ref.id === id ? { ...ref, src: null, enabled: false } : ref))}
+            onReferenceClear={(id) => setReferences((current) => current.map((ref) => ref.id === id ? { ...ref, src: null, assetId: undefined, enabled: false } : ref))}
             onPromptChange={setPrompt} onNegativePromptChange={setNegativePrompt}
             onModelChange={setModel} onRatioChange={setRatio}
             onResolutionChange={setResolution} onSeedChange={setSeed}
